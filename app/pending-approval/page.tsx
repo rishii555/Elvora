@@ -29,7 +29,7 @@ function PendingApprovalContent() {
   const [lastChecked, setLastChecked] = useState<Date>(new Date());
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const checkStatus = async () => {
+  const checkStatus = React.useCallback(async () => {
     if (!email) return;
     setIsChecking(true);
     setErrorMsg(null);
@@ -49,13 +49,13 @@ function PendingApprovalContent() {
     } finally {
       setIsChecking(false);
     }
-  };
+  }, [email]);
 
   useEffect(() => {
     if (email) {
       checkStatus();
     }
-  }, [email]);
+  }, [email, checkStatus]);
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });

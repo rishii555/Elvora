@@ -8,8 +8,14 @@ export async function GET() {
 
   try {
     const dbStart = Date.now();
-    // Lightweight tenant query to verify database connectivity
-    await prisma.tenant.findFirst({ select: { id: true } });
+    // Lightweight tenant query with strict 2.5s timeout safeguard
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Healthcheck DB ping timed out after 2500ms")), 2500)
+    );
+    await Promise.race([
+      prisma.tenant.findFirst({ select: { id: true } }),
+      timeoutPromise,
+    ]);
     dbLatencyMs = Date.now() - dbStart;
   } catch (error) {
     dbStatus = "disconnected";
