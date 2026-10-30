@@ -1,0 +1,942 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// 1. Core Tenant, User & Role-Based Access Control (RBAC)
+// -------------------------------------------------------------
+
+model Tenant {
+  id                String              @id @default(auto()) @map("_id") @db.ObjectId
+  legalName         String              @map("legal_name")
+  tradeName         String              @map("trade_name")
+  gstin             String?             @map("gstin")
+  stateCode         String              @default("09") @map("state_code")
+  phone             String
+  email             String?
+  address           String?
+  allowNegativeStock Boolean            @default(false) @map("allow_negative_stock")
+  invoicePrefix     String              @default("INV-") @map("invoice_prefix")
+  nextInvoiceNumber Int                 @default(1) @map("next_invoice_number")
+  currency          String              @default("INR")
+  isActive          Boolean             @default(true) @map("is_active")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  members           TenantMember[]
+  locations         InventoryLocation[]
+  brands            Brand[]
+  categories        Category[]
+  products          Product[]
+  variants          ProductVariant[]
+  supplierPrices    SupplierProductPrice[]
+  stockMovements    StockMovement[]
+  suppliers         Supplier[]
+  customers         Customer[]
+  purchaseInvoices  PurchaseInvoice[]
+  purchaseReturns   PurchaseReturn[]
+  salesInvoices     SalesInvoice[]
+  salesReturns      SalesReturn[]
+  creditDebitNotes  CreditDebitNote[]
+  payments          Payment[]
+  expenses          Expense[]
+  ledgerAccounts    LedgerAccount[]
+  ledgerEntries     LedgerEntry[]
+  journalEntries    JournalEntry[]
+  taxClassifications TaxClassification[]
+  invoiceSequences  InvoiceSequence[]
+  auditLogs         AuditLog[]
+  subscription      Subscription?
+  usage             TenantUsage?
+
+  @@map("tenants")
+}
+
+model User {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  email        String         @unique
+  passwordHash String         @map("password_hash")
+  name         String
+  phone        String?
+  isActive     Boolean        @default(true) @map("is_active")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  memberships  TenantMember[]
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+enum TenantRole {
+  OWNER
+  MANAGER
+  BILLER
+  ACCOUNTANT
+}
+
+model TenantMember {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId  String     @map("tenant_id") @db.ObjectId
+  userId    String     @map("user_id") @db.ObjectId
+  role      TenantRole @default(BILLER)
+  isDefault Boolean    @default(false) @map("is_default")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+  @@map("tenant_members")
+}
+
+// -------------------------------------------------------------
+// 2. Business Settings, Tax Configuration & Numbering Sequences
+// -------------------------------------------------------------
+
+model TaxClassification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId  String   @map("tenant_id") @db.ObjectId
+  name      String   // e.g. "GST 18%", "GST 12%", "GST 5%", "GST 0% / Nil", "Exempt"
+  code      String   // e.g. "GST_18", "GST_12", "GST_5", "GST_0", "EXEMPT"
+  rate      Float    // e.g. 18.0
+  cgstRate  Float    @map("cgst_rate") // e.g. 9.0
+  sgstRate  Float    @map("sgst_rate") // e.g. 9.0
+  igstRate  Float    @map("igst_rate") // e.g. 18.0
+  isDefault Boolean  @default(false) @map("is_default")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("tax_classifications")
+}
+
+model InvoiceSequence {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId   String   @map("tenant_id") @db.ObjectId
+  fiscalYear String   @map("fiscal_year") // e.g. "2026-27"
+  seriesType String   @map("series_type") // "TAX_INVOICE", "RETAIL_BILL", "CREDIT_NOTE", "PURCHASE_BILL"
+  prefix     String   @default("INV-")
+  nextNumber Int      @default(1) @map("next_number")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, fiscalYear, seriesType])
+  @@map("invoice_sequences")
+}
+
+// -------------------------------------------------------------
+// 3. Inventory Locations, Catalog & Multi-Location Stock
+// -------------------------------------------------------------
+
+model InventoryLocation {
+  id        String          @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId  String          @map("tenant_id") @db.ObjectId
+  name      String          // e.g. "Main Store Counter", "Warehouse A", "Godown Central"
+  code      String?
+  address   String?
+  isDefault Boolean         @default(false) @map("is_default")
+  isActive  Boolean         @default(true) @map("is_active")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  movements StockMovement[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("inventory_locations")
+}
+
+model Brand {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId  String    @map("tenant_id") @db.ObjectId
+  name      String
+  code      String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products  Product[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("brands")
+}
+
+model Category {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId  String     @map("tenant_id") @db.ObjectId
+  name      String
+  code      String?
+  parentId  String?    @map("parent_id") @db.ObjectId
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children  Category[] @relation("CategoryHierarchy")
+  products  Product[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("categories")
+}
+
+enum UnitOfMeasure {
+  PCS
+  SET
+  BOX
+  MTR
+  PAIR
+  KG
+}
+
+model Product {
+  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId      String          @map("tenant_id") @db.ObjectId
+  name          String
+  code          String          @map("code") // SKU / Item Code
+  barcode       String?
+  brandId       String?         @map("brand_id") @db.ObjectId
+  categoryId    String?         @map("category_id") @db.ObjectId
+  hsnCode       String?         @map("hsn_code")
+  uom           UnitOfMeasure   @default(PCS)
+  description   String?
+  minStockAlert Int             @default(5) @map("min_stock_alert")
+  isActive      Boolean         @default(true) @map("is_active")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand         Brand?          @relation(fields: [brandId], references: [id], onDelete: NoAction)
+  category      Category?       @relation(fields: [categoryId], references: [id], onDelete: NoAction)
+  variants      ProductVariant[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, barcode])
+  @@index([tenantId, name])
+  @@map("products")
+}
+
+model ProductVariant {
+  id               String                @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId         String                @map("tenant_id") @db.ObjectId
+  productId        String                @map("product_id") @db.ObjectId
+  name             String                @default("Standard")
+  sku              String
+  barcode          String?
+  model            String?               // e.g. "Wall Hung Rimless", "Single Lever Diverter"
+  size             String?               // e.g. "18x12 inch", "550x400 mm"
+  colorFinish      String?               @map("color_finish") // e.g. "Chrome Plated", "Matte Black", "Rose Gold"
+  purchasePrice    Float                 @default(0.00) @map("purchase_price")
+  sellingPrice     Float                 @default(0.00) @map("selling_price")
+  mrp              Float                 @default(0.00) @map("mrp")
+  gstRate          Float                 @default(18.00) @map("gst_rate")
+  currentStock     Int                   @default(0) @map("current_stock")
+  isActive         Boolean               @default(true) @map("is_active")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product          Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  movements        StockMovement[]
+  supplierPrices   SupplierProductPrice[]
+  purchaseItems       PurchaseInvoiceItem[]
+  purchaseReturnItems PurchaseReturnItem[]
+  salesItems          SalesInvoiceItem[]
+  salesReturnItems SalesReturnItem[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId, productId])
+  @@map("product_variants")
+}
+
+enum StockMovementType {
+  PURCHASE
+  SALE
+  RETURN_IN
+  RETURN_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  TRANSFER
+}
+
+model StockMovement {
+  id            String             @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId      String             @map("tenant_id") @db.ObjectId
+  locationId    String?            @map("location_id") @db.ObjectId
+  variantId     String             @map("variant_id") @db.ObjectId
+  type          StockMovementType
+  quantity      Int
+  unitCost      Float              @map("unit_cost")
+  balanceAfter  Int                @map("balance_after")
+  referenceType String?            @map("reference_type")
+  referenceId   String?            @map("reference_id")
+  reason        String?            // "OPENING_STOCK", "DAMAGED", "SCRAPPED", "AUDIT_CORRECTION", "INTERNAL_USE", "THEFT_OR_LOSS"
+  notes         String?
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location      InventoryLocation? @relation(fields: [locationId], references: [id], onDelete: NoAction)
+  variant       ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, variantId])
+  @@index([tenantId, locationId])
+  @@index([tenantId, referenceId])
+  @@index([tenantId, createdAt])
+  @@map("stock_movements")
+}
+
+// -------------------------------------------------------------
+// 4. Suppliers & Purchase Orders
+// -------------------------------------------------------------
+
+model Supplier {
+  id             String                 @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId       String                 @map("tenant_id") @db.ObjectId
+  name           String
+  companyName    String?                @map("company_name")
+  gstin          String?
+  phone          String
+  email          String?
+  address        String?
+  stateCode      String                 @default("09") @map("state_code")
+  balance        Float                  @default(0.00)
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  tenant         Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchases      PurchaseInvoice[]
+  purchaseReturns PurchaseReturn[]
+  payments       Payment[]
+  supplierPrices SupplierProductPrice[]
+
+  @@index([tenantId, name])
+  @@map("suppliers")
+}
+
+model SupplierProductPrice {
+  id               String          @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId         String          @map("tenant_id") @db.ObjectId
+  supplierId       String          @map("supplier_id") @db.ObjectId
+  variantId        String          @map("variant_id") @db.ObjectId
+  supplierItemCode String?         @map("supplier_item_code")
+  purchasePrice    Float           @map("purchase_price")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier         Supplier        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  variant          ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, supplierId, variantId])
+  @@index([tenantId, variantId])
+  @@map("supplier_product_prices")
+}
+
+model PurchaseInvoice {
+  id              String                @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId        String                @map("tenant_id") @db.ObjectId
+  supplierId      String                @map("supplier_id") @db.ObjectId
+  invoiceNumber   String                @map("invoice_number") // Vendor bill #
+  invoiceDate     DateTime              @map("invoice_date")
+  dueDate         DateTime?             @map("due_date")
+  isInterState    Boolean               @default(false) @map("is_inter_state")
+  subtotal        Float
+  discountAmount  Float                 @default(0.00) @map("discount_amount")
+  taxableAmount   Float                 @default(0.00) @map("taxable_amount")
+  cgstAmount      Float                 @default(0.00) @map("cgst_amount")
+  sgstAmount      Float                 @default(0.00) @map("sgst_amount")
+  igstAmount      Float                 @default(0.00) @map("igst_amount")
+  taxTotal        Float                 @map("tax_total")
+  freightAmount   Float                 @default(0.00) @map("freight_amount")
+  roundOff        Float                 @default(0.00) @map("round_off")
+  grandTotal      Float                 @map("grand_total")
+  paidAmount      Float                 @default(0.00) @map("paid_amount")
+  balanceAmount   Float                 @default(0.00) @map("balance_amount")
+  paymentStatus   String                @default("UNPAID") @map("payment_status")
+  status          String                @default("RECEIVED")
+  cancelReason    String?               @map("cancel_reason")
+  cancelledAt     DateTime?             @map("cancelled_at")
+  notes           String?
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier        Supplier              @relation(fields: [supplierId], references: [id], onDelete: NoAction)
+  items           PurchaseInvoiceItem[]
+  allocations     PaymentAllocation[]
+  creditDebitNotes CreditDebitNote[]
+  purchaseReturns PurchaseReturn[]
+
+  @@unique([tenantId, supplierId, invoiceNumber])
+  @@index([tenantId, invoiceDate])
+  @@index([tenantId, supplierId])
+  @@map("purchase_invoices")
+}
+
+model PurchaseInvoiceItem {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId          String          @map("tenant_id") @db.ObjectId
+  purchaseInvoiceId String          @map("purchase_invoice_id") @db.ObjectId
+  variantId         String          @map("variant_id") @db.ObjectId
+  sku               String?
+  productName       String?         @map("product_name")
+  variantName       String?         @map("variant_name")
+  quantity          Int
+  unitCost          Float           @map("unit_cost")
+  discountPercent   Float           @default(0.00) @map("discount_percent")
+  discountAmount    Float           @default(0.00) @map("discount_amount")
+  taxableAmount     Float           @default(0.00) @map("taxable_amount")
+  gstRate           Float           @map("gst_rate")
+  cgstAmount        Float           @default(0.00) @map("cgst_amount")
+  sgstAmount        Float           @default(0.00) @map("sgst_amount")
+  igstAmount        Float           @default(0.00) @map("igst_amount")
+  taxAmount         Float           @map("tax_amount")
+  totalAmount       Float           @map("total_amount")
+
+  invoice           PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  variant           ProductVariant  @relation(fields: [variantId], references: [id], onDelete: NoAction)
+
+  @@index([tenantId, purchaseInvoiceId])
+  @@map("purchase_invoice_items")
+}
+
+// -------------------------------------------------------------
+// 5. Customers & Sales Invoices
+// -------------------------------------------------------------
+
+model Customer {
+  id                 String         @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId           String         @map("tenant_id") @db.ObjectId
+  name               String
+  phone              String
+  email              String?
+  gstin              String?
+  stateCode          String         @default("09") @map("state_code")
+  address            String?
+  creditLimit        Float          @default(0.00) @map("credit_limit")
+  outstandingBalance Float          @default(0.00) @map("outstanding_balance")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  tenant             Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  salesInvoices      SalesInvoice[]
+  salesReturns       SalesReturn[]
+  payments           Payment[]
+
+  @@index([tenantId, phone])
+  @@index([tenantId, name])
+  @@map("customers")
+}
+
+enum InvoiceType {
+  B2B_TAX_INVOICE
+  B2C_RETAIL_BILL
+}
+
+enum InvoiceStatus {
+  DRAFT
+  FINALIZED
+  CANCELLED
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+  CREDIT
+  SPLIT
+}
+
+model SalesInvoice {
+  id               String              @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId         String              @map("tenant_id") @db.ObjectId
+  customerId       String?             @map("customer_id") @db.ObjectId
+  customerName     String              @map("customer_name")
+  customerPhone    String?             @map("customer_phone")
+  customerGstin    String?             @map("customer_gstin")
+  customerState    String              @default("09") @map("customer_state")
+  billingAddress   String?             @map("billing_address")
+  shippingAddress  String?             @map("shipping_address")
+  placeOfSupply    String?             @map("place_of_supply")
+  invoiceNumber    String              @map("invoice_number")
+  invoiceDate      DateTime            @default(now()) @map("invoice_date")
+  dueDate          DateTime?           @map("due_date")
+  invoiceType      InvoiceType         @default(B2C_RETAIL_BILL) @map("invoice_type")
+  isInterState     Boolean             @default(false) @map("is_inter_state")
+  isTaxInclusive   Boolean             @default(false) @map("is_tax_inclusive")
+  subtotal         Float
+  discountAmount   Float               @default(0.00) @map("discount_amount")
+  taxableAmount    Float               @map("taxable_amount")
+  cgstAmount       Float               @default(0.00) @map("cgst_amount")
+  sgstAmount       Float               @default(0.00) @map("sgst_amount")
+  igstAmount       Float               @default(0.00) @map("igst_amount")
+  roundOff         Float               @default(0.00) @map("round_off")
+  grandTotal       Float               @map("grand_total")
+  paidAmount       Float               @default(0.00) @map("paid_amount")
+  balanceAmount    Float               @default(0.00) @map("balance_amount")
+  paymentMode      PaymentMode         @default(CASH) @map("payment_mode")
+  status           InvoiceStatus       @default(FINALIZED)
+  idempotencyKey   String?             @map("idempotency_key")
+  cancelReason     String?             @map("cancel_reason")
+  cancelledAt      DateTime?           @map("cancelled_at")
+  printCount       Int                 @default(0) @map("print_count")
+  notes            String?
+  createdByUserId  String              @map("created_by_user_id")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer         Customer?           @relation(fields: [customerId], references: [id], onDelete: NoAction)
+  items            SalesInvoiceItem[]
+  creditDebitNotes CreditDebitNote[]
+  salesReturns     SalesReturn[]
+  allocations      PaymentAllocation[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, invoiceDate])
+  @@index([tenantId, status])
+  @@index([tenantId, status, invoiceDate])
+  @@index([tenantId, status, balanceAmount])
+  @@index([tenantId, idempotencyKey])
+  @@index([tenantId, customerId])
+  @@map("sales_invoices")
+}
+
+model SalesInvoiceItem {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId        String         @map("tenant_id") @db.ObjectId
+  salesInvoiceId  String         @map("sales_invoice_id") @db.ObjectId
+  variantId       String         @map("variant_id") @db.ObjectId
+  sku             String?
+  productName     String         @map("product_name")
+  variantName     String         @map("variant_name")
+  hsnCode         String?        @map("hsn_code")
+  uom             UnitOfMeasure  @default(PCS)
+  quantity        Int
+  unitPrice       Float          @map("unit_price")
+  isTaxInclusive  Boolean        @default(false) @map("is_tax_inclusive")
+  discountPercent Float          @default(0.00) @map("discount_percent")
+  discountAmount  Float          @default(0.00) @map("discount_amount")
+  taxableAmount   Float          @map("taxable_amount")
+  gstRate         Float          @map("gst_rate")
+  cgstAmount      Float          @default(0.00) @map("cgst_amount")
+  sgstAmount      Float          @default(0.00) @map("sgst_amount")
+  igstAmount      Float          @default(0.00) @map("igst_amount")
+  totalAmount     Float          @map("total_amount")
+
+  invoice         SalesInvoice   @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+  variant         ProductVariant @relation(fields: [variantId], references: [id], onDelete: NoAction)
+
+  @@index([tenantId, salesInvoiceId])
+  @@map("sales_invoice_items")
+}
+
+// -------------------------------------------------------------
+// 6. Payments, Receipts & Invoice Allocations
+// -------------------------------------------------------------
+
+enum PaymentType {
+  CUSTOMER_RECEIPT
+  SUPPLIER_PAYMENT
+}
+
+model Payment {
+  id              String              @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId        String              @map("tenant_id") @db.ObjectId
+  paymentNumber   String              @map("payment_number") // e.g. "RCT-2026-0001"
+  paymentType     PaymentType         @map("payment_type")
+  paymentDate     DateTime            @default(now()) @map("payment_date")
+  customerId      String?             @map("customer_id") @db.ObjectId
+  supplierId      String?             @map("supplier_id") @db.ObjectId
+  amount          Float
+  paymentMode     PaymentMode         @default(CASH) @map("payment_mode")
+  referenceNumber String?             @map("reference_number") // UTR, UPI ref, Cheque #
+  notes           String?
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer        Customer?           @relation(fields: [customerId], references: [id], onDelete: NoAction)
+  supplier        Supplier?           @relation(fields: [supplierId], references: [id], onDelete: NoAction)
+  allocations     PaymentAllocation[]
+
+  @@unique([tenantId, paymentNumber])
+  @@index([tenantId, paymentDate])
+  @@map("payments")
+}
+
+model PaymentAllocation {
+  id                String           @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId          String           @map("tenant_id") @db.ObjectId
+  paymentId         String           @map("payment_id") @db.ObjectId
+  salesInvoiceId    String?          @map("sales_invoice_id") @db.ObjectId
+  purchaseInvoiceId String?          @map("purchase_invoice_id") @db.ObjectId
+  amount            Float            // Amount knocked off from invoice balance
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  payment           Payment          @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  salesInvoice      SalesInvoice?    @relation(fields: [salesInvoiceId], references: [id], onDelete: NoAction)
+  purchaseInvoice   PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id], onDelete: NoAction)
+
+  @@index([tenantId, paymentId])
+  @@index([tenantId, salesInvoiceId])
+  @@index([tenantId, purchaseInvoiceId])
+  @@map("payment_allocations")
+}
+
+// -------------------------------------------------------------
+// 7. Returns, Credit / Debit Notes & Corrections
+// -------------------------------------------------------------
+
+model SalesReturn {
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId          String            @map("tenant_id") @db.ObjectId
+  returnNumber      String            @map("return_number")
+  originalInvoiceId String            @map("original_invoice_id") @db.ObjectId
+  customerId        String?           @map("customer_id") @db.ObjectId
+  returnDate        DateTime          @default(now()) @map("return_date")
+  reason            String
+  subtotal          Float
+  taxTotal          Float             @map("tax_total")
+  grandTotal        Float             @map("grand_total")
+  createdAt         DateTime          @default(now()) @map("created_at")
+
+  tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice           SalesInvoice      @relation(fields: [originalInvoiceId], references: [id], onDelete: NoAction)
+  customer          Customer?         @relation(fields: [customerId], references: [id], onDelete: NoAction)
+  items             SalesReturnItem[]
+
+  @@unique([tenantId, returnNumber])
+  @@index([tenantId, originalInvoiceId])
+  @@map("sales_returns")
+}
+
+model SalesReturnItem {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId      String         @map("tenant_id") @db.ObjectId
+  salesReturnId String         @map("sales_return_id") @db.ObjectId
+  variantId     String         @map("variant_id") @db.ObjectId
+  quantity      Int
+  unitPrice     Float          @map("unit_price")
+  taxAmount     Float          @map("tax_amount")
+  totalAmount   Float          @map("total_amount")
+
+  salesReturn   SalesReturn    @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+  variant       ProductVariant @relation(fields: [variantId], references: [id], onDelete: NoAction)
+
+  @@index([tenantId, salesReturnId])
+  @@map("sales_return_items")
+}
+
+enum NoteType {
+  CREDIT_NOTE
+  DEBIT_NOTE
+}
+
+model CreditDebitNote {
+  id                        String           @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId                  String           @map("tenant_id") @db.ObjectId
+  originalInvoiceId         String?          @map("original_invoice_id") @db.ObjectId
+  originalPurchaseInvoiceId String?          @map("original_purchase_invoice_id") @db.ObjectId
+  noteType                  NoteType         @map("note_type")
+  noteNumber                String           @map("note_number")
+  noteDate                  DateTime         @default(now()) @map("note_date")
+  reason                    String
+  subtotal                  Float
+  taxAmount                 Float            @map("tax_amount")
+  grandTotal                Float            @map("grand_total")
+  createdByUserId           String?          @map("created_by_user_id")
+  createdAt                 DateTime         @default(now()) @map("created_at")
+
+  tenant                    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice                   SalesInvoice?    @relation(fields: [originalInvoiceId], references: [id], onDelete: NoAction)
+  purchaseInvoice           PurchaseInvoice? @relation(fields: [originalPurchaseInvoiceId], references: [id], onDelete: NoAction)
+
+  @@unique([tenantId, noteNumber])
+  @@index([tenantId, originalInvoiceId])
+  @@index([tenantId, originalPurchaseInvoiceId])
+  @@map("credit_debit_notes")
+}
+
+model PurchaseReturn {
+  id                String               @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId          String               @map("tenant_id") @db.ObjectId
+  returnNumber      String               @map("return_number")
+  purchaseInvoiceId String               @map("purchase_invoice_id") @db.ObjectId
+  supplierId        String               @map("supplier_id") @db.ObjectId
+  returnDate        DateTime             @default(now()) @map("return_date")
+  reason            String
+  subtotal          Float
+  taxTotal          Float                @map("tax_total")
+  grandTotal        Float                @map("grand_total")
+  createdAt         DateTime             @default(now()) @map("created_at")
+
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice           PurchaseInvoice      @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  supplier          Supplier             @relation(fields: [supplierId], references: [id], onDelete: NoAction)
+  items             PurchaseReturnItem[]
+
+  @@unique([tenantId, returnNumber])
+  @@index([tenantId, purchaseInvoiceId])
+  @@index([tenantId, supplierId])
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnItem {
+  id               String          @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId         String          @map("tenant_id") @db.ObjectId
+  purchaseReturnId String          @map("purchase_return_id") @db.ObjectId
+  variantId        String          @map("variant_id") @db.ObjectId
+  quantity         Int
+  unitCost         Float           @map("unit_cost")
+  taxAmount        Float           @map("tax_amount")
+  totalAmount      Float           @map("total_amount")
+
+  purchaseReturn   PurchaseReturn  @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  variant          ProductVariant  @relation(fields: [variantId], references: [id], onDelete: NoAction)
+
+  @@index([tenantId, purchaseReturnId])
+  @@map("purchase_return_items")
+}
+
+// -------------------------------------------------------------
+// 8. Double-Entry Accounting, General Ledger & Journal Entries
+// -------------------------------------------------------------
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+model LedgerAccount {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId     String        @map("tenant_id") @db.ObjectId
+  code         String        // e.g. "1010_CASH", "1020_BANK", "1030_ACCOUNTS_RECEIVABLE", "4010_SALES"
+  name         String
+  type         AccountType
+  category     String?       // "Current Assets", "Operating Revenue", "Direct Expenses", etc.
+  isSystem     Boolean       @default(true) @map("is_system")
+  balance      Float         @default(0.00)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entries      LedgerEntry[]
+  journalLines JournalLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("ledger_accounts")
+}
+
+model LedgerEntry {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId      String        @map("tenant_id") @db.ObjectId
+  accountId     String        @map("account_id") @db.ObjectId
+  entryDate     DateTime      @default(now()) @map("entry_date")
+  description   String
+  debit         Float         @default(0.00)
+  credit        Float         @default(0.00)
+  referenceType String?       @map("reference_type")
+  referenceId   String?       @map("reference_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  account       LedgerAccount @relation(fields: [accountId], references: [id], onDelete: NoAction)
+
+  @@index([tenantId, accountId])
+  @@index([tenantId, entryDate])
+  @@map("ledger_entries")
+}
+
+model JournalEntry {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId      String        @map("tenant_id") @db.ObjectId
+  entryNumber   String        @map("entry_number") // e.g. "JRN-2026-0001"
+  entryDate     DateTime      @default(now()) @map("entry_date")
+  narration     String
+  referenceType String?       @map("reference_type")
+  referenceId   String?       @map("reference_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lines         JournalLine[]
+
+  @@unique([tenantId, entryNumber])
+  @@index([tenantId, entryDate])
+  @@index([tenantId, referenceType, referenceId])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String        @map("tenant_id") @db.ObjectId
+  journalId   String        @map("journal_id") @db.ObjectId
+  accountId   String        @map("account_id") @db.ObjectId
+  debit       Float         @default(0.00)
+  credit      Float         @default(0.00)
+  description String?
+
+  journal     JournalEntry  @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  account     LedgerAccount @relation(fields: [accountId], references: [id], onDelete: NoAction)
+
+  @@index([tenantId, journalId])
+  @@index([tenantId, accountId])
+  @@map("journal_lines")
+}
+
+model Expense {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId      String      @map("tenant_id") @db.ObjectId
+  expenseNumber String      @map("expense_number") // e.g. "EXP-2627-0001"
+  expenseDate   DateTime    @default(now()) @map("expense_date")
+  category      String      // "RENT", "SALARIES", "ELECTRICITY", "OFFICE_SUPPLIES", "MARKETING", "MAINTENANCE"
+  payee         String
+  amount        Float
+  taxAmount     Float       @default(0.00) @map("tax_amount")
+  paymentMode   PaymentMode @default(BANK_TRANSFER) @map("payment_mode")
+  paymentRef    String?     @map("payment_ref")
+  description   String?
+  notes         String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, expenseNumber])
+  @@index([tenantId, expenseDate])
+  @@index([tenantId, category])
+  @@map("expenses")
+}
+
+// -------------------------------------------------------------
+// 9. Auditing, Security & Event Logs
+// -------------------------------------------------------------
+
+model AuditLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String   @map("tenant_id") @db.ObjectId
+  userId      String?  @map("user_id") @db.ObjectId
+  action      String   // e.g. "INVOICE_CREATED", "STOCK_ADJUSTED", "PAYMENT_RECORDED"
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  changesJson String?  @map("changes_json")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: NoAction)
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
+
+// -------------------------------------------------------------
+// 10. Commercial SaaS Subscriptions, Plans & Platform Admin
+// -------------------------------------------------------------
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+  GRACE_PERIOD
+}
+
+model SubscriptionPlan {
+  id                  String         @id @default(auto()) @map("_id") @db.ObjectId
+  code                String         @unique // "FREE_TRIAL", "STARTER", "GROWTH", "ENTERPRISE"
+  name                String
+  description         String?
+  priceMonthly        Float          @default(0.00) @map("price_monthly")
+  priceYearly         Float          @default(0.00) @map("price_yearly")
+  maxProducts         Int            @default(100) @map("max_products") // -1 for unlimited
+  maxInvoicesPerMonth Int            @default(50) @map("max_invoices_per_month") // -1 for unlimited
+  maxStaffMembers     Int            @default(2) @map("max_staff_members")
+  hasAdvancedReports  Boolean        @default(false) @map("has_advanced_reports")
+  hasAuditLogs        Boolean        @default(false) @map("has_audit_logs")
+  hasMultiLocation    Boolean        @default(false) @map("has_multi_location")
+  isActive            Boolean        @default(true) @map("is_active")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  subscriptions       Subscription[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id                     String             @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId               String             @unique @map("tenant_id") @db.ObjectId
+  planId                 String             @map("plan_id") @db.ObjectId
+  status                 SubscriptionStatus @default(TRIALING)
+  billingProvider        String             @default("MOCK") @map("billing_provider") // "MOCK", "STRIPE", "RAZORPAY"
+  providerSubscriptionId String?            @map("provider_subscription_id")
+  providerCustomerId     String?            @map("provider_customer_id")
+  currentPeriodStart     DateTime           @default(now()) @map("current_period_start")
+  currentPeriodEnd       DateTime           @map("current_period_end")
+  trialEndsAt            DateTime?          @map("trial_ends_at")
+  cancelAtPeriodEnd      Boolean            @default(false) @map("cancel_at_period_end")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+
+  tenant                 Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan                   SubscriptionPlan   @relation(fields: [planId], references: [id], onDelete: NoAction)
+
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model TenantUsage {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId            String   @unique @map("tenant_id") @db.ObjectId
+  monthlyInvoiceCount Int      @default(0) @map("monthly_invoice_count")
+  lastResetDate       DateTime @default(now()) @map("last_reset_date")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_usages")
+}
+
+enum PlatformAdminRole {
+  SUPER_ADMIN
+  SUPPORT_AGENT
+}
+
+model PlatformAdminUser {
+  id           String            @id @default(auto()) @map("_id") @db.ObjectId
+  email        String            @unique
+  passwordHash String            @map("password_hash")
+  name         String
+  role         PlatformAdminRole @default(SUPPORT_AGENT)
+  isActive     Boolean           @default(true) @map("is_active")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  @@map("platform_admin_users")
+}

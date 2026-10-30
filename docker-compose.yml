@@ -1,0 +1,15 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: elvora_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: elvora
+    ports:
+      - "3306:3306"
+    volumes:
+      - elvora_mysql_data:/var/lib/mysql
+
+volumes:
+  elvora_mysql_data:
