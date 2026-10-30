@@ -98,20 +98,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-100/70">
+    <div className="flex min-h-screen bg-[#F8FAFC]">
       {/* Sidebar for Desktop */}
-      <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
+      <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-[#E2E8F0] bg-white md:flex">
         {/* Shop Branding Header */}
-        <div className="border-b border-slate-200 p-4">
+        <div className="border-b border-[#E2E8F0] p-4">
           <div className="mb-3">
             <ElvoraLogo size="sm" showTagline />
           </div>
-          <div className="rounded-xl bg-slate-50 border border-slate-200/90 p-2.5">
-            <h2 className="truncate text-xs font-bold text-slate-900">
+          <div className="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-2.5">
+            <h2 className="truncate text-xs font-bold text-[#111827]">
               {profile ? profile.tenant.name : "My Shop"}
             </h2>
             <div className="mt-1 flex items-center justify-between">
-              <span className="inline-flex items-center rounded bg-blue-100 px-1.5 py-0.2 text-[10px] font-semibold text-blue-700">
+              <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.2 text-[10px] font-semibold text-[#2563EB] border border-blue-200/60">
                 {profile?.tenant.role || "OWNER"}
               </span>
               <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">

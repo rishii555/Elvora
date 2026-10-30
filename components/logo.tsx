@@ -16,19 +16,19 @@ export function ElvoraLogo({ showTagline = false, className = "", href = "/", si
   }[size];
 
   const content = (
-    <div className={`flex flex-col ${className}`}>
+    <div className={`flex flex-col items-start ${className}`}>
       <div className="flex items-center gap-2">
         <Image
           src="/elvora-logo.png"
-          alt="Elvora Logo"
+          alt="Elvora"
           width={dimensions.width}
           height={dimensions.height}
           priority
-          className="h-auto w-auto max-h-10 object-contain"
+          className="h-7 sm:h-8 w-auto object-contain"
         />
       </div>
       {showTagline && (
-        <span className={`font-medium tracking-tight text-slate-500 mt-0.5 ${dimensions.taglineClass}`}>
+        <span className={`font-medium tracking-tight text-slate-500 mt-0.5 select-none ${dimensions.taglineClass}`}>
           Simpler Business. Smarter Growth.
         </span>
       )}
