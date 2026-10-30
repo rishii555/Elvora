@@ -18,6 +18,7 @@ import { Alert } from "@/components/ui/alert";
 const BUSINESS_TYPES = [
   { id: "retail", name: "Retail Store / POS Counter", desc: "Supermarkets, apparel, electronics, pharmacy" },
   { id: "wholesale", name: "Wholesale & Distribution", desc: "B2B sales, bulk shipments, credit ledgers" },
+  { id: "sanitary", name: "Sanitaryware, Tiles & Bath Fittings", desc: "Ceramic basins, tiles, CP bath fittings, hardware" },
   { id: "manufacturing", name: "Manufacturing & Production", desc: "Raw materials, assembly, finished inventory" },
   { id: "services", name: "Professional Services & IT", desc: "Agencies, consulting, maintenance retainers" },
   { id: "general", name: "General Trading & Contracting", desc: "Diverse goods, project-based invoicing" },
@@ -65,6 +66,7 @@ export default function BusinessSetupWizardPage() {
     "Office Equipment & Electronics",
     "Furniture & Workspace Supplies",
     "Hardware & Tools",
+    "Sanitaryware, Tiles & Bath Fittings",
     "Apparel & Textiles",
     "Packaged Goods & FMCG",
     "Professional Services",

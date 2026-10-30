@@ -28,6 +28,8 @@ const INDIAN_STATES = [
 const BUSINESS_SECTORS = [
   "Retail Store / Supermarket",
   "Wholesale & Distribution",
+  "Sanitaryware, Tiles & Bath Fittings",
+  "Hardware, Sanitary & Building Materials",
   "Electronics, Hardware & Gadgets",
   "Apparel, Footwear & Fashion",
   "Manufacturing & Industrial Supplies",
