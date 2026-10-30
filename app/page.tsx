@@ -101,8 +101,8 @@ export default async function HomePage() {
   return (
     <div className="flex min-h-screen flex-col bg-[#F8FAFC] text-[#475569]">
       {/* 1. Header (Navbar) */}
-      <header className="sticky top-0 z-50 border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-50 w-full border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md">
+        <div className="flex w-full items-center justify-between px-4 py-3 sm:px-6 md:px-8 lg:px-12">
           {/* Left: Brand + Tagline */}
           <div className="flex items-center">
             <ElvoraLogo showTagline size="md" />
