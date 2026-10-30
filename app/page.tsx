@@ -9,7 +9,6 @@ import {
   Calculator, 
   FileSpreadsheet, 
   ArrowRight,
-  CheckCircle2,
   Users,
   HelpCircle
 } from "lucide-react";
@@ -364,135 +363,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* 6. Commercial SaaS Pricing Section */}
-        <section className="bg-[#F8FAFC] px-4 py-20 sm:px-6 lg:py-24">
-          <div className="mx-auto max-w-7xl text-center space-y-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#2563EB] bg-blue-50 px-3 py-1 rounded-md border border-blue-200">
-              Transparent Commercial Pricing
-            </span>
-            <h2 className="text-3xl font-extrabold text-[#111827] sm:text-4xl">
-              Scalable Plans for Every Stage of Business Growth
-            </h2>
-            <p className="mx-auto max-w-2xl text-xs sm:text-sm text-[#475569]">
-              Start with a 14-day full access free trial. No credit card required to register. Server-enforced limits ensure seamless growth.
-            </p>
-
-            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4 text-left">
-              {/* Plan 1: Free Trial */}
-              <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-xs flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="inline-block rounded-md bg-slate-100 px-2.5 py-1 text-xs font-bold text-[#475569]">
-                    Free Trial
-                  </div>
-                  <div>
-                    <span className="text-3xl font-extrabold text-[#111827]">₹0</span>
-                    <span className="text-xs text-[#64748B]"> / 14 days</span>
-                  </div>
-                  <p className="text-xs text-[#475569]">Explore all features risk-free with sample or live store data.</p>
-                  <ul className="space-y-2 text-xs text-[#475569] pt-2 border-t border-slate-100">
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> 50 Invoices / month</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> 100 Products</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> 2 Staff Members</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> A4 & Thermal Billing</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Standard Reports</li>
-                  </ul>
-                </div>
-                <Link
-                  href="/register"
-                  className="mt-6 block w-full rounded-lg border border-[#E2E8F0] py-2.5 text-center text-xs font-bold text-[#111827] hover:bg-slate-50 transition shadow-2xs"
-                >
-                  Start Free Trial
-                </Link>
-              </div>
-
-              {/* Plan 2: Starter */}
-              <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-xs flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="inline-block rounded-md bg-blue-50 px-2.5 py-1 text-xs font-bold text-[#2563EB] border border-blue-200">
-                    Starter
-                  </div>
-                  <div>
-                    <span className="text-3xl font-extrabold text-[#111827]">₹499</span>
-                    <span className="text-xs text-[#64748B]"> / month</span>
-                  </div>
-                  <p className="text-xs text-[#475569]">For retail shops and standalone trading counters.</p>
-                  <ul className="space-y-2 text-xs text-[#475569] pt-2 border-t border-slate-100">
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> 300 Invoices / month</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> 500 Product Varieties</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> 3 Staff Members</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Thermal & A4 Formats</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Customer Khata Dues</li>
-                  </ul>
-                </div>
-                <Link
-                  href="/register"
-                  className="mt-6 block w-full rounded-lg bg-[#0F172A] py-2.5 text-center text-xs font-bold text-white hover:bg-slate-800 transition shadow-xs"
-                >
-                  Choose Starter
-                </Link>
-              </div>
-
-              {/* Plan 3: Growth Pro (Most Popular) */}
-              <div className="rounded-xl border-2 border-[#2563EB] bg-white p-6 shadow-lg shadow-blue-500/10 flex flex-col justify-between relative">
-                <span className="absolute -top-3 right-5 rounded-md bg-[#2563EB] px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-xs">
-                  Most Popular
-                </span>
-                <div className="space-y-4">
-                  <div className="inline-block rounded-md bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">
-                    Growth Pro
-                  </div>
-                  <div>
-                    <span className="text-3xl font-extrabold text-[#111827]">₹1,499</span>
-                    <span className="text-xs text-[#64748B]"> / month</span>
-                  </div>
-                  <p className="text-xs text-[#475569]">For wholesalers, multi-counter stores, and distributors.</p>
-                  <ul className="space-y-2 text-xs text-[#475569] pt-2 border-t border-slate-100">
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-blue-600" /> <strong>Unlimited Invoices</strong></li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-blue-600" /> 5,000 Products</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-blue-600" /> 10 Staff Members (RBAC)</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-blue-600" /> GSTR-1 & 3B Tax Reports</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-blue-600" /> Multi-Location & Auditing</li>
-                  </ul>
-                </div>
-                <Link
-                  href="/register"
-                  className="mt-6 block w-full rounded-lg bg-[#2563EB] py-2.5 text-center text-xs font-bold text-white hover:bg-[#1D4ED8] transition shadow-xs"
-                >
-                  Get Growth Pro
-                </Link>
-              </div>
-
-              {/* Plan 4: Enterprise */}
-              <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-xs flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="inline-block rounded-md bg-slate-100 px-2.5 py-1 text-xs font-bold text-[#475569]">
-                    Enterprise
-                  </div>
-                  <div>
-                    <span className="text-3xl font-extrabold text-[#111827]">₹3,999</span>
-                    <span className="text-xs text-[#64748B]"> / month</span>
-                  </div>
-                  <p className="text-xs text-[#475569]">For large distribution chains, depots, and factories.</p>
-                  <ul className="space-y-2 text-xs text-[#475569] pt-2 border-t border-slate-100">
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Unlimited Invoices & Items</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> 50 Staff Members</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Custom GST Series</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Priority Support</li>
-                    <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> 99.9% Uptime Guarantee</li>
-                  </ul>
-                </div>
-                <Link
-                  href="/register"
-                  className="mt-6 block w-full rounded-lg border border-[#E2E8F0] py-2.5 text-center text-xs font-bold text-[#111827] hover:bg-slate-50 transition shadow-2xs"
-                >
-                  Contact Sales
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 7. Frequently Asked Questions (FAQ) */}
+        {/* 6. Frequently Asked Questions (FAQ) */}
         <section className="bg-white border-t border-[#E2E8F0] px-4 py-16 sm:px-6 lg:py-20">
           <div className="mx-auto max-w-4xl">
             <div className="text-center mb-12">

@@ -25,7 +25,6 @@ export function PublicFooter() {
               <li><Link href="/business-management-software" className="hover:text-blue-600 transition">Business Management Suite</Link></li>
               <li><Link href="/online-invoicing-software" className="hover:text-blue-600 transition">Online Invoicing Software</Link></li>
               <li><Link href="/invoice-generator" className="hover:text-blue-600 transition">Free GST Invoice Generator</Link></li>
-              <li><Link href="/pricing" className="hover:text-blue-600 transition">Pricing Plans</Link></li>
             </ul>
           </div>
 

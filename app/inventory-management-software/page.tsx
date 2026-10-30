@@ -99,10 +99,10 @@ export default function InventorySoftwarePage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="/pricing"
+                href="/login"
                 className="inline-flex items-center rounded-lg border border-[#E2E8F0] bg-white px-6 py-3.5 text-sm sm:text-base font-semibold text-[#111827] hover:bg-slate-50 transition-colors shadow-xs"
               >
-                View Plans & Pricing
+                Sign In to Store
               </Link>
             </div>
           </div>

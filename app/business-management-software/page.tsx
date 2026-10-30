@@ -126,10 +126,10 @@ export default function BusinessManagementSoftwarePage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="/pricing"
+                href="/login"
                 className="inline-flex items-center rounded-lg border border-[#E2E8F0] bg-white px-6 py-3.5 text-sm font-semibold text-[#111827] hover:bg-slate-50 transition-colors shadow-2xs"
               >
-                Explore Pricing Plans
+                Sign In to Store
               </Link>
             </div>
           </div>
