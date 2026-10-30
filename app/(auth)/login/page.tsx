@@ -29,6 +29,10 @@ export default function LoginPage() {
 
       const data = await res.json();
       if (!res.ok) {
+        if (data.status === "PENDING") {
+          router.push(`/pending-approval?email=${encodeURIComponent(form.email)}`);
+          return;
+        }
         throw new Error(data.error || "Login failed");
       }
 

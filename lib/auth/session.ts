@@ -22,6 +22,7 @@ export interface SessionPayload {
   name: string;
   activeTenantId: string;
   role: "OWNER" | "MANAGER" | "BILLER" | "ACCOUNTANT";
+  approvalStatus?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
   exp?: number;
 }
 

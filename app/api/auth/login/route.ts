@@ -58,6 +58,42 @@ export async function POST(req: NextRequest) {
       authDuration = performance.now() - authStart;
 
       if (isValid) {
+        // Enforce user account approval status
+        if (user.approvalStatus === "PENDING") {
+          return NextResponse.json(
+            {
+              error: "Your account registration is under review by the Elvora administration team. Please wait for approval.",
+              status: "PENDING",
+              email: user.email,
+            },
+            { status: 403 }
+          );
+        }
+
+        if (user.approvalStatus === "REJECTED") {
+          return NextResponse.json(
+            {
+              error: user.rejectionReason
+                ? `Your registration was not approved. Reason: ${user.rejectionReason}`
+                : "Your registration was not approved. Please contact Elvora support.",
+              status: "REJECTED",
+              email: user.email,
+            },
+            { status: 403 }
+          );
+        }
+
+        if (user.approvalStatus === "SUSPENDED") {
+          return NextResponse.json(
+            {
+              error: "Your account has been suspended by the platform administrator.",
+              status: "SUSPENDED",
+              email: user.email,
+            },
+            { status: 403 }
+          );
+        }
+
         const activeMembership =
           user.memberships.find((m) => m.isDefault && m.tenant.isActive) ||
           user.memberships.find((m) => m.tenant.isActive);
@@ -65,6 +101,43 @@ export async function POST(req: NextRequest) {
         if (!activeMembership) {
           return NextResponse.json(
             { error: "No active shop accounts associated with this user" },
+            { status: 403 }
+          );
+        }
+
+        // Enforce tenant approval status
+        if (activeMembership.tenant.approvalStatus === "PENDING") {
+          return NextResponse.json(
+            {
+              error: "Your business registration is under review by the Elvora administration team. Please wait for approval.",
+              status: "PENDING",
+              email: user.email,
+              businessName: activeMembership.tenant.tradeName,
+            },
+            { status: 403 }
+          );
+        }
+
+        if (activeMembership.tenant.approvalStatus === "REJECTED") {
+          return NextResponse.json(
+            {
+              error: activeMembership.tenant.rejectionReason
+                ? `Your business registration was not approved. Reason: ${activeMembership.tenant.rejectionReason}`
+                : "Your business registration was not approved. Please contact Elvora support.",
+              status: "REJECTED",
+              email: user.email,
+            },
+            { status: 403 }
+          );
+        }
+
+        if (activeMembership.tenant.approvalStatus === "SUSPENDED") {
+          return NextResponse.json(
+            {
+              error: "This business workspace has been suspended by the platform administrator.",
+              status: "SUSPENDED",
+              email: user.email,
+            },
             { status: 403 }
           );
         }
@@ -77,6 +150,7 @@ export async function POST(req: NextRequest) {
           name: user.name,
           activeTenantId: activeMembership.tenantId,
           role: activeMembership.role,
+          approvalStatus: "APPROVED",
         });
 
         // Prime tenant context cache immediately to eliminate cold start on next request

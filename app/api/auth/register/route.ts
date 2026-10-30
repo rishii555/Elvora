@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/passwords";
-import { signSessionToken, SESSION_COOKIE_NAME, getSessionCookieOptions } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/auth/rate-limiter";
 import { createVerificationToken } from "@/lib/auth/tokens";
 import { sendVerificationEmail } from "@/lib/email/service";
@@ -57,17 +56,18 @@ export async function POST(req: NextRequest) {
 
     // Execute atomic creation of User, Tenant, Membership, and Default Seeds in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Create the User
+      // 1. Create the User with PENDING approval status
       const user = await tx.user.create({
         data: {
           name: validated.name,
           email: validated.email.toLowerCase(),
           passwordHash,
           phone: validated.phone,
+          approvalStatus: "PENDING",
         },
       });
 
-      // 2. Create the Tenant (Shop)
+      // 2. Create the Tenant (Shop) with PENDING approval status
       const tenant = await tx.tenant.create({
         data: {
           tradeName: validated.tradeName,
@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
           address: validated.address || null,
           invoicePrefix: "INV-",
           nextInvoiceNumber: 1,
+          approvalStatus: "PENDING",
         },
       });
 
@@ -134,47 +135,44 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // 6. Record Audit Log
+      // 6. Record Audit Log for Pending Registration
       await tx.auditLog.create({
         data: {
           tenantId: tenant.id,
           userId: user.id,
-          action: "TENANT_REGISTERED",
+          action: "TENANT_REGISTERED_PENDING_APPROVAL",
           entityType: "Tenant",
           entityId: tenant.id,
-          changesJson: JSON.stringify({ tradeName: tenant.tradeName, stateCode: tenant.stateCode }),
+          changesJson: JSON.stringify({ 
+            tradeName: tenant.tradeName, 
+            stateCode: tenant.stateCode,
+            status: "PENDING" 
+          }),
         },
       });
 
-      // 7. Provision 14-Day Full Access Commercial Free Trial
+      // 7. Provision Default Subscription Plan for future activation
       await provisionTrialSubscription(tenant.id, tx);
 
       return { user, tenant };
     });
 
-    // Create session token
-    const token = await signSessionToken({
-      userId: result.user.id,
-      email: result.user.email,
-      name: result.user.name,
-      activeTenantId: result.tenant.id,
-      role: "OWNER",
-    });
+    // Optional email verification notification
+    try {
+      const { rawToken: verificationRawToken } = createVerificationToken(result.user.email, "EMAIL_VERIFICATION", 24 * 60 * 60 * 1000);
+      await sendVerificationEmail(result.user.email, verificationRawToken);
+    } catch {
+      // Email delivery optional if SMTP not configured
+    }
 
-    // Generate and dispatch email verification token
-    const { rawToken: verificationRawToken } = createVerificationToken(result.user.email, "EMAIL_VERIFICATION", 24 * 60 * 60 * 1000);
-    await sendVerificationEmail(result.user.email, verificationRawToken);
-
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
-      message: "Shop account successfully created",
+      status: "PENDING",
+      message: "Your registration has been submitted successfully and is currently under review by our administration team. You will be able to access your business dashboard once your account is approved.",
+      email: result.user.email,
+      businessName: result.tenant.tradeName,
       tenantId: result.tenant.id,
     });
-
-    // Set secure HTTP-only cookie (7-day session)
-    response.cookies.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions());
-
-    return response;
   } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors[0]?.message || "Validation failed" }, { status: 400 });

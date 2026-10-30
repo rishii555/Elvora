@@ -75,7 +75,10 @@ export default function RegisterPage() {
         throw new Error(data.error || "Failed to register business workspace");
       }
 
-      router.push("/dashboard");
+      // Successful registration is submitted for admin review
+      router.push(
+        `/pending-approval?email=${encodeURIComponent(form.email)}&name=${encodeURIComponent(form.tradeName)}`
+      );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {

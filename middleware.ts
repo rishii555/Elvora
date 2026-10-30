@@ -30,6 +30,11 @@ export async function middleware(req: NextRequest) {
     pathname === "/privacy" ||
     pathname === "/terms" ||
     pathname === "/pricing" ||
+    pathname === "/about" ||
+    pathname === "/contact" ||
+    pathname === "/pending-approval" ||
+    pathname === "/business-management-software" ||
+    pathname === "/online-invoicing-software" ||
     pathname === "/gst-billing-software" ||
     pathname === "/inventory-management-software" ||
     pathname === "/pos-software" ||
@@ -53,11 +58,15 @@ export async function middleware(req: NextRequest) {
     session = await verifySessionToken(sessionCookie);
   }
 
-  const isAuthenticated = Boolean(session && session.userId && session.activeTenantId);
+  const isPending = session?.approvalStatus === "PENDING";
+  const isAuthenticated = Boolean(session && session.userId && session.activeTenantId && !isPending);
 
   // 3. Root route ("/") handling:
   // If user has an active authenticated session, seamlessly direct them to /dashboard
   if (pathname === "/") {
+    if (isPending) {
+      return NextResponse.redirect(new URL("/pending-approval", req.url));
+    }
     if (isAuthenticated) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
@@ -65,9 +74,12 @@ export async function middleware(req: NextRequest) {
   }
 
   // 4. Auth routes (/login, /register, etc.):
-  // If already logged in, redirect straight to /dashboard
+  // If already logged in, redirect straight to /dashboard (or /pending-approval if pending)
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
   if (isAuthRoute) {
+    if (isPending) {
+      return NextResponse.redirect(new URL("/pending-approval", req.url));
+    }
     if (isAuthenticated) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
@@ -77,11 +89,14 @@ export async function middleware(req: NextRequest) {
   }
 
   // 5. Protected dashboard routes:
-  // If not authenticated, redirect to /login with returnUrl
+  // If not authenticated or pending, redirect appropriately
   const isProtectedRoute = PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
   if (isProtectedRoute) {
+    if (isPending) {
+      return NextResponse.redirect(new URL("/pending-approval", req.url));
+    }
     if (!isAuthenticated) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("returnUrl", pathname);

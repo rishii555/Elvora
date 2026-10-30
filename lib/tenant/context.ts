@@ -107,9 +107,28 @@ export async function requireTenantContext(req: NextRequest): Promise<TenantCont
     }
   }
 
-  if (!membership || !membership.tenant.isActive || !membership.user.isActive) {
+  if (
+    !membership ||
+    !membership.tenant.isActive ||
+    !membership.user.isActive ||
+    membership.tenant.approvalStatus === "PENDING" ||
+    membership.tenant.approvalStatus === "REJECTED" ||
+    membership.tenant.approvalStatus === "SUSPENDED" ||
+    membership.user.approvalStatus === "PENDING" ||
+    membership.user.approvalStatus === "REJECTED" ||
+    membership.user.approvalStatus === "SUSPENDED"
+  ) {
     tenantContextCache.delete(cacheKey);
-    throw new TenantAuthorizationError("Tenant membership is inactive, revoked, or invalid");
+    const status = membership?.tenant?.approvalStatus || membership?.user?.approvalStatus;
+    const msg =
+      status === "PENDING"
+        ? "Account registration is pending administrator approval"
+        : status === "REJECTED"
+        ? "Account registration was rejected by administrator"
+        : status === "SUSPENDED"
+        ? "Account has been suspended by platform administrator"
+        : "Tenant membership is inactive, revoked, or invalid";
+    throw new TenantAuthorizationError(msg);
   }
 
   const context: TenantContext = {

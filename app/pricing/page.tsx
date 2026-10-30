@@ -24,20 +24,20 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    q: "Do I need a credit card to start the 14-day free trial?",
-    a: "No. You can register with just your business name and email address. You get immediate access to all features without entering credit card or payment details.",
+    q: "How does the registration and approval process work?",
+    a: "Registration is completely free. Simply enter your business name, GSTIN (if applicable), and contact details. The Elvora administration team reviews your submission and activates your business workspace without requiring a credit card or payment gateway checkout.",
   },
   {
-    q: "Can I upgrade or downgrade my plan at any time?",
-    a: "Yes. You can switch plans anytime from Shop Settings. Subscription limits update immediately upon payment.",
+    q: "Do I need to pay or enter payment details to register?",
+    a: "No. Elvora operates on a verified admin-approval model. You never need to enter credit cards, debit cards, or payment details to register.",
   },
   {
-    q: "What payment methods are supported for subscriptions?",
-    a: "We support UPI, Net Banking, Debit Cards, Credit Cards, and corporate GST purchase orders via secure Indian payment gateways.",
+    q: "Can I manage multiple staff members and counters?",
+    a: "Yes. Once your account is approved, you can invite team members with role-based access control (Manager, Biller, Accountant) from Shop Settings.",
   },
   {
-    q: "Will I receive a GST tax invoice for my subscription payment?",
-    a: "Yes. All subscription payments generate a formal B2B GST tax invoice with our company GSTIN and your business GSTIN so you can claim 100% Input Tax Credit (ITC).",
+    q: "How long does administrator approval typically take?",
+    a: "Registrations are reviewed by our platform administrators within a few hours during business working hours (Monday to Saturday, 9:00 AM – 7:00 PM IST). You can check your live approval status anytime on the pending approval page.",
   },
 ];
 

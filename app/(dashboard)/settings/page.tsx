@@ -9,8 +9,7 @@ import {
   Users, 
   Check, 
   Plus,
-  CreditCard,
-  Zap
+  ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,14 +55,10 @@ export default function ShopSettingsPage() {
   const [newStaffRole, setNewStaffRole] = useState<"BILLER" | "MANAGER" | "ACCOUNTANT">("BILLER");
   const [staffError, setStaffError] = useState("");
 
-  // Subscription state
-  const [isUpgrading, setIsUpgrading] = useState(false);
-  const [upgradeNotice, setUpgradeNotice] = useState("");
-
   // SWR queries
   const { data: profileData, mutate: mutateProfile } = useSWR<{ success: boolean; tenant: any }>("/api/tenant/profile");
   const { data: membersData, isLoading: isLoadingMembers, mutate: mutateMembers } = useSWR<{ success: boolean; members: StaffMember[] }>("/api/tenant/members");
-  const { data: subData, mutate: mutateSub } = useSWR<any>("/api/billing/subscription");
+  const { data: subData } = useSWR<any>("/api/billing/subscription");
 
   const staffList = membersData?.members || [];
 
@@ -134,27 +129,6 @@ export default function ShopSettingsPage() {
     }
   };
 
-  const handleSimulateUpgrade = async (planCode: string) => {
-    try {
-      setIsUpgrading(true);
-      setUpgradeNotice("");
-      const res = await fetch("/api/billing/subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planCode, billingCycle: "MONTHLY" }),
-      });
-
-      if (res.ok) {
-        setUpgradeNotice(`✓ Plan successfully updated to ${planCode}. (Simulated transaction)`);
-        await mutateSub();
-      }
-    } catch (err) {
-      console.error("Error upgrading plan:", err);
-    } finally {
-      setIsUpgrading(false);
-    }
-  };
-
   return (
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
@@ -214,7 +188,7 @@ export default function ShopSettingsPage() {
               : "border-transparent text-slate-500 hover:text-slate-700"
           }`}
         >
-          <CreditCard className="h-4 w-4" /> Subscription & Plans
+          <ShieldCheck className="h-4 w-4" /> Account & Verification
         </button>
       </div>
 
@@ -467,167 +441,72 @@ export default function ShopSettingsPage() {
         </div>
       )}
 
-      {/* Tab 4: Subscription & Billing */}
+      {/* Tab 4: Account & Verification Status */}
       {activeTab === "SUBSCRIPTION" && (
         <div className="space-y-6">
-          {upgradeNotice && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
-              {upgradeNotice}
-            </div>
-          )}
-
-          {/* Current Plan Overview Card */}
+          {/* Current Account Status Overview Card */}
           <div className="rounded-3xl border border-slate-200 bg-gradient-to-r from-blue-900 via-slate-900 to-slate-900 p-6 text-white shadow-md">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="info" size="sm">
-                    {subData?.plan?.name || "Free Trial"}
+                  <Badge variant="success" size="sm">
+                    Verified Business Account
                   </Badge>
-                  <Badge
-                    variant={
-                      subData?.status === "ACTIVE"
-                        ? "success"
-                        : subData?.status === "TRIALING"
-                        ? "warning"
-                        : "danger"
-                    }
-                    size="sm"
-                  >
-                    {subData?.status}
-                  </Badge>
+                  <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-800/80">
+                    Admin Approved
+                  </span>
                 </div>
                 <h2 className="text-2xl font-bold tracking-tight">
-                  {subData?.isTrialing
-                    ? `${subData?.trialDaysRemaining} Days Left in Free Trial`
-                    : subData?.plan?.name}
+                  Full SaaS Application Access Granted
                 </h2>
-                <p className="text-xs text-slate-300 max-w-xl">
-                  {subData?.plan?.description || "Explore all pro features of Elvora risk-free."}
+                <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                  Your business workspace is approved and operating under the Elvora Enterprise-Ready Free Commercial License. All core business modules are fully unlocked without subscription billing.
                 </p>
               </div>
 
               <div className="text-right">
-                <div className="text-3xl font-extrabold text-white">
-                  ₹{subData?.plan?.priceMonthly || 0}
-                  <span className="text-xs font-normal text-slate-400"> / month</span>
+                <div className="text-2xl font-extrabold text-white">
+                  Active License
                 </div>
-                <span className="text-[11px] text-slate-400">
-                  Renews: {subData?.subscription?.currentPeriodEnd ? new Date(subData.subscription.currentPeriodEnd).toLocaleDateString("en-IN") : "—"}
+                <span className="text-[11px] text-emerald-400 font-semibold">
+                  Zero Subscription Fees
                 </span>
               </div>
             </div>
 
-            {/* Quota Limits Progress Grid */}
+            {/* Unlocked Features Grid */}
             <div className="mt-6 pt-6 border-t border-slate-800 grid gap-4 sm:grid-cols-3 text-xs">
               <div>
-                <span className="text-slate-400">Monthly Invoices Quota:</span>
-                <p className="text-base font-bold text-white mt-1">
-                  {subData?.limits?.maxInvoicesPerMonth === -1
-                    ? "Unlimited"
-                    : `${subData?.limits?.maxInvoicesPerMonth || 50} / month`}
-                </p>
+                <span className="text-slate-400">Counter POS Invoicing:</span>
+                <p className="text-base font-bold text-white mt-1">Unlimited Invoices</p>
               </div>
               <div>
-                <span className="text-slate-400">Product Variety Quota:</span>
-                <p className="text-base font-bold text-white mt-1">
-                  {subData?.limits?.maxProducts === -1
-                    ? "Unlimited"
-                    : `${subData?.limits?.maxProducts || 100} products`}
-                </p>
+                <span className="text-slate-400">Inventory & SKU Ledger:</span>
+                <p className="text-base font-bold text-white mt-1">Unlimited Products</p>
               </div>
               <div>
-                <span className="text-slate-400">Staff Seats:</span>
-                <p className="text-base font-bold text-white mt-1">
-                  {subData?.limits?.maxStaffMembers || 2} members
-                </p>
+                <span className="text-slate-400">Staff Collaboration:</span>
+                <p className="text-base font-bold text-white mt-1">Multi-User RBAC</p>
               </div>
             </div>
           </div>
 
-          {/* Development Mock Provider Banner */}
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 shadow-sm">
-            <Zap className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <strong>Development Mock Provider Active:</strong>
-              <p className="text-amber-800 mt-0.5">
-                Upgrading below tests server-side plan limit enforcement using a simulated development checkout session. No real cards are charged. In production, verified webhooks from Stripe or Razorpay activate these tiers.
-              </p>
-            </div>
-          </div>
-
-          {/* Available Upgrade Plans */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            {/* Starter Plan */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 flex flex-col justify-between">
-              <div>
-                <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Starter</span>
-                <div className="mt-2 text-2xl font-extrabold text-slate-900">₹499 <span className="text-xs text-slate-500 font-normal">/ mo</span></div>
-                <p className="text-xs text-slate-600 mt-1">For independent retail shops and single counters.</p>
-                <ul className="mt-3 space-y-1.5 text-xs text-slate-700">
-                  <li>✓ 300 Invoices / month</li>
-                  <li>✓ 500 Product Varieties</li>
-                  <li>✓ 3 Staff Members</li>
-                </ul>
+          {/* Account Verification Details Card */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">Workspace Authorization & Security Details</h3>
+            <div className="grid gap-4 sm:grid-cols-2 text-xs text-slate-600">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-2">
+                <p className="font-bold text-slate-800">Administrative Governance</p>
+                <p className="leading-relaxed">
+                  Registration approval is governed directly by authorized Elvora platform administrators. No payment gateway or credit card registration is required.
+                </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isUpgrading || subData?.plan?.code === "STARTER"}
-                onClick={() => handleSimulateUpgrade("STARTER")}
-                className="w-full font-bold"
-              >
-                {subData?.plan?.code === "STARTER" ? "Current Tier" : "Switch to Starter"}
-              </Button>
-            </div>
-
-            {/* Growth Plan */}
-            <div className="rounded-2xl border-2 border-blue-600 bg-white p-5 shadow-sm space-y-4 flex flex-col justify-between relative">
-              <span className="absolute -top-3 right-4 rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-white">
-                Recommended
-              </span>
-              <div>
-                <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Growth Pro</span>
-                <div className="mt-2 text-2xl font-extrabold text-slate-900">₹1,499 <span className="text-xs text-slate-500 font-normal">/ mo</span></div>
-                <p className="text-xs text-slate-600 mt-1">For wholesalers, distributors, multi-counter stores and growing businesses.</p>
-                <ul className="mt-3 space-y-1.5 text-xs text-slate-700">
-                  <li>✓ <strong>Unlimited Invoices</strong></li>
-                  <li>✓ 5,000 Product Varieties</li>
-                  <li>✓ 10 Staff Members (RBAC)</li>
-                  <li>✓ Advanced GSTR-1/3B Analytics</li>
-                </ul>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-2">
+                <p className="font-bold text-slate-800">Multi-Tenant Vault Isolation</p>
+                <p className="leading-relaxed">
+                  Your shop records (customers, invoices, suppliers, ledgers) are cryptographically isolated within your private workspace.
+                </p>
               </div>
-              <Button
-                size="sm"
-                disabled={isUpgrading || subData?.plan?.code === "GROWTH"}
-                onClick={() => handleSimulateUpgrade("GROWTH")}
-                className="w-full bg-blue-600 hover:bg-blue-700 font-bold text-white"
-              >
-                {subData?.plan?.code === "GROWTH" ? "Current Tier" : "Upgrade to Growth Pro"}
-              </Button>
-            </div>
-
-            {/* Enterprise Plan */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 flex flex-col justify-between">
-              <div>
-                <span className="text-xs font-bold text-purple-700 uppercase tracking-wider">Enterprise</span>
-                <div className="mt-2 text-2xl font-extrabold text-slate-900">₹3,999 <span className="text-xs text-slate-500 font-normal">/ mo</span></div>
-                <p className="text-xs text-slate-600 mt-1">For multi-branch corporate distributors and factory depots.</p>
-                <ul className="mt-3 space-y-1.5 text-xs text-slate-700">
-                  <li>✓ Unlimited Everything</li>
-                  <li>✓ 50 Staff Members</li>
-                  <li>✓ Dedicated Account Manager</li>
-                </ul>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isUpgrading || subData?.plan?.code === "ENTERPRISE"}
-                onClick={() => handleSimulateUpgrade("ENTERPRISE")}
-                className="w-full font-bold"
-              >
-                {subData?.plan?.code === "ENTERPRISE" ? "Current Tier" : "Switch to Enterprise"}
-              </Button>
             </div>
           </div>
         </div>

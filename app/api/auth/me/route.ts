@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
         name: context.tenantName,
         role: context.role,
       },
+      approvalStatus: "APPROVED",
     });
 
     response.headers.set(
