@@ -21,6 +21,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@netlify/plugin-nextjs": "^5.16.5",
     "@prisma/client": "^6.19.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
