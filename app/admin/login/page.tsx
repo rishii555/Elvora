@@ -87,13 +87,6 @@ export default function PlatformAdminLoginPage() {
             <ArrowRight className="h-4 w-4 ml-1.5" />
           </Button>
         </form>
-
-        <div className="border-t border-slate-800/80 pt-4 text-center">
-          <span className="text-[11px] text-slate-500">
-            Default credentials for local dev setup: <br />
-            <code className="text-slate-400 font-mono">admin@elvora.com / ElvoraAdmin2026!</code>
-          </span>
-        </div>
       </div>
     </div>
   );

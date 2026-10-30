@@ -85,8 +85,13 @@ export default function PlatformAdminDashboardPage() {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/admin/auth/logout", { method: "POST" });
-    window.location.href = "/admin/login";
+    try {
+      await fetch("/api/admin/auth/logout", { method: "POST" });
+    } catch (e) {
+      console.error("Logout error:", e);
+    }
+    document.cookie = "elvora_platform_admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
+    window.location.replace("/admin/login");
   };
 
   return (
