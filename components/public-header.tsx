@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { ElvoraLogo } from "@/components/logo";
 
 interface PublicHeaderProps {
-  activeNav?: "home" | "gst" | "inventory" | "pos" | "invoice-gen" | "pricing" | "blog";
+  activeNav?: "home" | "gst" | "inventory" | "pos" | "business" | "invoicing" | "invoice-gen" | "pricing" | "blog" | "about" | "contact";
 }
 
 export function PublicHeader({ activeNav }: PublicHeaderProps) {
@@ -12,9 +12,10 @@ export function PublicHeader({ activeNav }: PublicHeaderProps) {
     { label: "GST Billing", href: "/gst-billing-software", id: "gst" },
     { label: "Inventory", href: "/inventory-management-software", id: "inventory" },
     { label: "Counter POS", href: "/pos-software", id: "pos" },
-    { label: "Free Invoice Generator", href: "/invoice-generator", id: "invoice-gen" },
+    { label: "Business Suite", href: "/business-management-software", id: "business" },
+    { label: "Invoicing", href: "/online-invoicing-software", id: "invoicing" },
     { label: "Pricing", href: "/pricing", id: "pricing" },
-    { label: "Guides & Blog", href: "/blog", id: "blog" },
+    { label: "Guides", href: "/blog", id: "blog" },
   ];
 
   return (

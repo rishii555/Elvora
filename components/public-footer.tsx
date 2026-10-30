@@ -22,6 +22,8 @@ export function PublicFooter() {
               <li><Link href="/gst-billing-software" className="hover:text-blue-600 transition">GST Billing Software</Link></li>
               <li><Link href="/inventory-management-software" className="hover:text-blue-600 transition">Inventory & Stock Ledger</Link></li>
               <li><Link href="/pos-software" className="hover:text-blue-600 transition">Counter POS & Thermal Billing</Link></li>
+              <li><Link href="/business-management-software" className="hover:text-blue-600 transition">Business Management Suite</Link></li>
+              <li><Link href="/online-invoicing-software" className="hover:text-blue-600 transition">Online Invoicing Software</Link></li>
               <li><Link href="/invoice-generator" className="hover:text-blue-600 transition">Free GST Invoice Generator</Link></li>
               <li><Link href="/pricing" className="hover:text-blue-600 transition">Pricing Plans</Link></li>
             </ul>
@@ -43,6 +45,8 @@ export function PublicFooter() {
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Company & Access</p>
             <ul className="space-y-1.5 text-slate-600 font-medium">
+              <li><Link href="/about" className="hover:text-blue-600 transition">About Elvora</Link></li>
+              <li><Link href="/contact" className="hover:text-blue-600 transition">Contact & Support</Link></li>
               <li><Link href="/login" className="hover:text-blue-600 transition">Store Sign In</Link></li>
               <li><Link href="/register" className="hover:text-blue-600 transition">Register 14-Day Free Trial</Link></li>
               <li><Link href="/privacy" className="hover:text-blue-600 transition">Privacy Policy</Link></li>

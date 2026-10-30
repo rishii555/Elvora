@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { siteConfig } from "@/lib/seo/config";
+import { GoogleAnalytics } from "@/components/seo/analytics";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -21,6 +22,14 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: siteConfig.url,
+    languages: {
+      "en-IN": `${siteConfig.url}`,
+      "en": `${siteConfig.url}`,
+      "x-default": `${siteConfig.url}`,
+    },
+  },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
   },
   openGraph: {
     type: "website",
@@ -78,6 +87,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
+        <GoogleAnalytics />
         {children}
       </body>
     </html>
