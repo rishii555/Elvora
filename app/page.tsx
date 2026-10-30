@@ -13,7 +13,15 @@ import {
   Users,
   HelpCircle
 } from "lucide-react";
-import { ElvoraLogo } from "@/components/logo";
+import { PublicHeader } from "@/components/public-header";
+import { PublicFooter } from "@/components/public-footer";
+import { JsonLd } from "@/components/seo/json-ld";
+import { 
+  getOrganizationSchema, 
+  getWebsiteSchema, 
+  getSoftwareApplicationSchema, 
+  getFaqSchema 
+} from "@/lib/seo/config";
 
 export default async function HomePage() {
   const cookieStore = await cookies();
@@ -100,32 +108,17 @@ export default async function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F8FAFC] text-[#475569]">
-      {/* 1. Header (Navbar) */}
-      <header className="sticky top-0 z-50 w-full border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md">
-        <div className="flex w-full items-center justify-between px-4 py-3 sm:px-6 md:px-8 lg:px-12">
-          {/* Left: Brand + Tagline */}
-          <div className="flex items-center">
-            <ElvoraLogo showTagline size="md" />
-          </div>
+      <JsonLd
+        data={[
+          getOrganizationSchema(),
+          getWebsiteSchema(),
+          getSoftwareApplicationSchema(),
+          getFaqSchema(faqs),
+        ]}
+      />
 
-          {/* Right: Auth Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/login"
-              className="rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-[#111827] hover:bg-slate-100 transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#2563EB] px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-[#1D4ED8] active:bg-blue-800 transition-all"
-            >
-              Get Started Free
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </header>
+      {/* 1. Header (Navbar) */}
+      <PublicHeader activeNav="home" />
 
       {/* 2. Hero Section */}
       <main className="flex-1">
@@ -532,31 +525,7 @@ export default async function HomePage() {
       </main>
 
       {/* 8. Professional SaaS Footer */}
-      <footer className="border-t border-[#E2E8F0] bg-white py-12 text-center text-xs text-[#64748B]">
-        <div className="mx-auto max-w-7xl px-4 flex flex-col items-center gap-4">
-          <ElvoraLogo size="sm" showTagline />
-          <div className="flex flex-wrap items-center justify-center gap-6 text-[#475569] font-medium pt-2">
-            <Link href="/privacy" className="hover:text-[#111827] transition">
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="hover:text-[#111827] transition">
-              Terms of Service
-            </Link>
-            <Link href="/login" className="hover:text-[#111827] transition">
-              Sign In
-            </Link>
-            <Link href="/register" className="hover:text-[#111827] transition">
-              Register Business
-            </Link>
-            <Link href="/admin/login" className="text-slate-400 hover:text-slate-600 transition">
-              Platform Admin
-            </Link>
-          </div>
-          <p className="text-slate-400 mt-2">
-            © {new Date().getFullYear()} Elvora Multi-Tenant SaaS. Simpler Business. Smarter Growth. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

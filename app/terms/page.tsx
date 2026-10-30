@@ -1,22 +1,37 @@
 import React from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
-import { ElvoraLogo } from "@/components/logo";
+import { PublicHeader } from "@/components/public-header";
+import { PublicFooter } from "@/components/public-footer";
+import { siteConfig } from "@/lib/seo/config";
+
+export const metadata: Metadata = {
+  title: "Terms of Service | Elvora Multi-Tenant SaaS",
+  description:
+    "Terms of Service, subscription limits, commercial billing agreements, and service level guidelines for Elvora SaaS users.",
+  alternates: {
+    canonical: `${siteConfig.url}/terms`,
+  },
+};
 
 export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-4xl bg-white p-8 sm:p-12 rounded-3xl border border-slate-200 shadow-sm space-y-8">
-        {/* Navigation */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-6">
-          <ElvoraLogo showTagline size="md" />
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to Home
-          </Link>
-        </div>
+    <div className="flex min-h-screen flex-col bg-[#F8FAFC]">
+      <PublicHeader />
+
+      <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-4xl bg-white p-8 sm:p-12 rounded-xl border border-slate-200 shadow-sm space-y-8">
+          {/* Navigation */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-6">
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Terms of Service</h1>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to Home
+            </Link>
+          </div>
 
         {/* Legal Review Required Notice */}
         <div className="rounded-2xl border border-amber-300 bg-amber-50/80 p-5 text-amber-900 flex items-start gap-3">
@@ -76,6 +91,9 @@ export default function TermsOfServicePage() {
           </section>
         </div>
       </div>
-    </div>
-  );
+    </main>
+
+    <PublicFooter />
+  </div>
+);
 }

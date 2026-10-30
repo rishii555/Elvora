@@ -23,15 +23,27 @@ const PROTECTED_PREFIXES = [
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // 1. Skip Next.js internal static assets and public files
+  // 1. Skip Next.js internal static assets
   if (
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
-    pathname.includes(".") || // e.g. favicon.ico, images, robots.txt
+    pathname.includes(".") || // e.g. favicon.ico, images, sitemap.xml, robots.txt
     pathname === "/privacy" ||
-    pathname === "/terms"
+    pathname === "/terms" ||
+    pathname === "/pricing" ||
+    pathname === "/gst-billing-software" ||
+    pathname === "/inventory-management-software" ||
+    pathname === "/pos-software" ||
+    pathname === "/invoice-generator" ||
+    pathname.startsWith("/blog")
   ) {
     return NextResponse.next();
+  }
+
+  // 1b. For private API endpoints, inject strict X-Robots-Tag header to prevent indexing
+  if (pathname.startsWith("/api")) {
+    const res = NextResponse.next();
+    res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return res;
   }
 
   // 2. Read session cookie
@@ -59,7 +71,9 @@ export async function middleware(req: NextRequest) {
     if (isAuthenticated) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
-    return NextResponse.next();
+    const res = NextResponse.next();
+    res.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return res;
   }
 
   // 5. Protected dashboard routes:
@@ -73,7 +87,9 @@ export async function middleware(req: NextRequest) {
       loginUrl.searchParams.set("returnUrl", pathname);
       return NextResponse.redirect(loginUrl);
     }
-    return NextResponse.next();
+    const res = NextResponse.next();
+    res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return res;
   }
 
   // 6. Platform Admin routes
@@ -85,7 +101,9 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(new URL("/admin/dashboard", req.url));
       }
     }
-    return NextResponse.next();
+    const res = NextResponse.next();
+    res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return res;
   }
 
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
@@ -98,7 +116,9 @@ export async function middleware(req: NextRequest) {
     if (!isAdminAuth) {
       return NextResponse.redirect(new URL("/admin/login", req.url));
     }
-    return NextResponse.next();
+    const res = NextResponse.next();
+    res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return res;
   }
 
   return NextResponse.next();
