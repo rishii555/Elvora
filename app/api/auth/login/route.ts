@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { verifyPassword } from "@/lib/auth/passwords";
 import { signSessionToken, SESSION_COOKIE_NAME, getSessionCookieOptions } from "@/lib/auth/session";
 import { checkRateLimit, resetRateLimit } from "@/lib/auth/rate-limiter";
+import { setTenantContextCache } from "@/lib/tenant/context";
 
 const loginSchema = z.object({
   email: z.string().email("Valid email required"),
@@ -11,6 +12,9 @@ const loginSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const reqStart = performance.now();
+  let dbDuration = 0;
+  let authDuration = 0;
   try {
     // 1. Enforce IP-based rate limiting (5 attempts per 15 min)
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
@@ -32,6 +36,7 @@ export async function POST(req: NextRequest) {
     // 2. Primary: Look up authenticated user in MongoDB Atlas database
     let user = null;
     try {
+      const dbStart = performance.now();
       user = await prisma.user.findUnique({
         where: { email: email.toLowerCase() },
         include: {
@@ -42,12 +47,16 @@ export async function POST(req: NextRequest) {
           },
         },
       });
+      dbDuration = performance.now() - dbStart;
     } catch {
       // In case database connection is unreachable, will fall back below
     }
 
     if (user && user.isActive) {
+      const authStart = performance.now();
       const isValid = await verifyPassword(password, user.passwordHash);
+      authDuration = performance.now() - authStart;
+
       if (isValid) {
         const activeMembership =
           user.memberships.find((m) => m.isDefault && m.tenant.isActive) ||
@@ -70,6 +79,18 @@ export async function POST(req: NextRequest) {
           role: activeMembership.role,
         });
 
+        // Prime tenant context cache immediately to eliminate cold start on next request
+        setTenantContextCache(activeMembership.tenantId, user.id, {
+          tenantId: activeMembership.tenant.id,
+          tenantName: activeMembership.tenant.tradeName,
+          userId: user.id,
+          userEmail: user.email,
+          userName: user.name,
+          role: activeMembership.role,
+        });
+
+        const totalDuration = performance.now() - reqStart;
+
         const response = NextResponse.json({
           success: true,
           message: "Login successful",
@@ -84,6 +105,11 @@ export async function POST(req: NextRequest) {
             role: activeMembership.role,
           },
         });
+
+        response.headers.set(
+          "Server-Timing",
+          `db;dur=${dbDuration.toFixed(1)}, auth;dur=${authDuration.toFixed(1)}, total;dur=${totalDuration.toFixed(1)}`
+        );
 
         response.cookies.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions());
 

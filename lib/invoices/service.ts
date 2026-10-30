@@ -14,6 +14,7 @@ import {
   postSalesInvoiceAccounting,
   postCustomerReceiptAccounting,
 } from "@/lib/accounting/service";
+import { clearTenantDashboardMetricsCache } from "@/lib/dashboard/metrics";
 
 export interface CreateInvoiceItemInput {
   variantId: string;
@@ -365,6 +366,7 @@ export async function createSalesInvoice(
       }
     }
 
+    clearTenantDashboardMetricsCache(tenantId);
     return { isDuplicate: false, invoice };
   });
 }
@@ -438,6 +440,7 @@ export async function cancelSalesInvoice(
       include: { items: true, customer: true },
     });
 
+    clearTenantDashboardMetricsCache(tenantId);
     return updated;
   });
 }

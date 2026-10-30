@@ -18,8 +18,21 @@ export class TenantAuthorizationError extends Error {
   }
 }
 
-// In-memory short-lived tenant context cache scoped strictly by tenantId:userId
+// In-memory tenant context cache scoped strictly by tenantId:userId
 const tenantContextCache = new Map<string, { context: TenantContext; expiresAt: number }>();
+export const TENANT_CONTEXT_CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
+
+export function setTenantContextCache(
+  tenantId: string,
+  userId: string,
+  context: TenantContext,
+  ttlMs = TENANT_CONTEXT_CACHE_TTL_MS
+) {
+  tenantContextCache.set(`${tenantId}:${userId}`, {
+    context,
+    expiresAt: Date.now() + ttlMs,
+  });
+}
 
 export function clearTenantContextCache(tenantId?: string, userId?: string) {
   if (tenantId && userId) {
@@ -108,10 +121,10 @@ export async function requireTenantContext(req: NextRequest): Promise<TenantCont
     role: membership.role,
   };
 
-  // Cache for 5000ms (5 seconds)
+  // Cache verified membership for 60 seconds (sub-millisecond subsequent lookups)
   tenantContextCache.set(cacheKey, {
     context,
-    expiresAt: now + 5000,
+    expiresAt: now + TENANT_CONTEXT_CACHE_TTL_MS,
   });
 
   // Keep cache small

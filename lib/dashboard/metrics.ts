@@ -5,6 +5,22 @@ Decimal.set({ precision: 30, rounding: Decimal.ROUND_HALF_UP });
 
 export type DateRangeKey = "7d" | "30d" | "this_month" | "90d" | "this_year";
 
+// Strictly tenant-scoped in-memory cache for dashboard metrics
+const dashboardMetricsCache = new Map<string, { data: DashboardMetricsResult; expiresAt: number }>();
+export const DASHBOARD_METRICS_CACHE_TTL_MS = 15 * 1000; // 15s TTL
+
+export function clearTenantDashboardMetricsCache(tenantId?: string) {
+  if (tenantId) {
+    for (const key of dashboardMetricsCache.keys()) {
+      if (key.startsWith(`${tenantId}:`)) {
+        dashboardMetricsCache.delete(key);
+      }
+    }
+  } else {
+    dashboardMetricsCache.clear();
+  }
+}
+
 export interface DashboardMetricsResult {
   tenantId: string;
   currency: string;
@@ -124,6 +140,12 @@ export async function calculateTenantDashboardMetrics(
     throw new Error("Tenant ID is required for dashboard metrics calculation");
   }
 
+  const cacheKey = `${tenantId}:${dateRangeKey}`;
+  const cached = dashboardMetricsCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const { startDate, endDate, label } = getDateRangeBounds(dateRangeKey, now);
 
   const startOfToday = new Date(now);
@@ -134,47 +156,35 @@ export async function calculateTenantDashboardMetrics(
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
   try {
+    const coversToday = startDate <= startOfToday && endDate >= endOfToday;
+    const coversMonth = startDate <= startOfMonth && endDate >= endOfToday;
+
     // Run all independent queries in parallel via Promise.all
     const [
-      todayInvoices,
-      monthlyInvoices,
       rangeInvoices,
+      todayInvoicesFallback,
+      monthlyInvoicesFallback,
       pendingInvoices,
       variants,
       creditNotes,
       recentSalesInvoices,
       recentPurchaseInvoices,
     ] = await Promise.all([
-      // 1. Invoices for Today (excluding CANCELLED)
-      prisma.salesInvoice.findMany({
-        where: {
-          tenantId,
-          status: { not: "CANCELLED" },
-          invoiceDate: { gte: startOfToday, lte: endOfToday },
-        },
-        select: { grandTotal: true },
-      }),
-
-      // 2. Invoices for This Month (excluding CANCELLED)
-      prisma.salesInvoice.findMany({
-        where: {
-          tenantId,
-          status: { not: "CANCELLED" },
-          invoiceDate: { gte: startOfMonth, lte: endOfToday },
-        },
-        select: { grandTotal: true },
-      }),
-
-      // 3. Invoices in Selected Range (for trend & period metrics)
+      // 1. Invoices in Selected Range (for trend & period metrics)
       prisma.salesInvoice.findMany({
         where: {
           tenantId,
           status: { not: "CANCELLED" },
           invoiceDate: { gte: startDate, lte: endDate },
         },
-        include: {
+        select: {
+          id: true,
+          invoiceDate: true,
+          grandTotal: true,
+          taxableAmount: true,
           items: {
-            include: {
+            select: {
+              quantity: true,
               variant: {
                 select: { purchasePrice: true },
               },
@@ -183,6 +193,30 @@ export async function calculateTenantDashboardMetrics(
         },
         orderBy: { invoiceDate: "asc" },
       }),
+
+      // 2. Invoices for Today (only queried if range doesn't already encompass today)
+      coversToday
+        ? Promise.resolve([])
+        : prisma.salesInvoice.findMany({
+            where: {
+              tenantId,
+              status: { not: "CANCELLED" },
+              invoiceDate: { gte: startOfToday, lte: endOfToday },
+            },
+            select: { grandTotal: true },
+          }),
+
+      // 3. Invoices for This Month (only queried if range doesn't already encompass this month)
+      coversMonth
+        ? Promise.resolve([])
+        : prisma.salesInvoice.findMany({
+            where: {
+              tenantId,
+              status: { not: "CANCELLED" },
+              invoiceDate: { gte: startOfMonth, lte: endOfToday },
+            },
+            select: { grandTotal: true },
+          }),
 
       // 4. Outstanding Receivables
       prisma.salesInvoice.findMany({
@@ -208,7 +242,11 @@ export async function calculateTenantDashboardMetrics(
           tenantId,
           isActive: true,
         },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          currentStock: true,
           product: {
             select: {
               name: true,
@@ -220,7 +258,7 @@ export async function calculateTenantDashboardMetrics(
         },
       }),
 
-      // Returns (Credit Notes) within period
+      // 6. Returns (Credit Notes) within period
       prisma.creditDebitNote.findMany({
         where: {
           tenantId,
@@ -230,7 +268,7 @@ export async function calculateTenantDashboardMetrics(
         select: { subtotal: true },
       }),
 
-      // 8. Recent 5 Sales Invoices (excluding cancelled)
+      // 7. Recent 5 Sales Invoices (excluding cancelled)
       prisma.salesInvoice.findMany({
         where: { 
           tenantId,
@@ -251,10 +289,15 @@ export async function calculateTenantDashboardMetrics(
         },
       }),
 
-      // 9. Recent 5 Purchase Invoices
+      // 8. Recent 5 Purchase Invoices
       prisma.purchaseInvoice.findMany({
         where: { tenantId },
-        include: {
+        select: {
+          id: true,
+          invoiceNumber: true,
+          invoiceDate: true,
+          grandTotal: true,
+          paymentStatus: true,
           supplier: {
             select: { name: true, companyName: true },
           },
@@ -264,13 +307,29 @@ export async function calculateTenantDashboardMetrics(
       }),
     ]);
 
-    const todaySales = todayInvoices
-      .reduce((acc, inv) => acc.plus(new Decimal(inv.grandTotal.toString())), new Decimal(0))
-      .toNumber();
+    const todaySales = coversToday
+      ? rangeInvoices
+          .filter((inv) => {
+            const d = new Date(inv.invoiceDate);
+            return d >= startOfToday && d <= endOfToday;
+          })
+          .reduce((acc, inv) => acc.plus(new Decimal(inv.grandTotal.toString())), new Decimal(0))
+          .toNumber()
+      : todayInvoicesFallback
+          .reduce((acc, inv) => acc.plus(new Decimal(inv.grandTotal.toString())), new Decimal(0))
+          .toNumber();
 
-    const monthlySales = monthlyInvoices
-      .reduce((acc, inv) => acc.plus(new Decimal(inv.grandTotal.toString())), new Decimal(0))
-      .toNumber();
+    const monthlySales = coversMonth
+      ? rangeInvoices
+          .filter((inv) => {
+            const d = new Date(inv.invoiceDate);
+            return d >= startOfMonth && d <= endOfToday;
+          })
+          .reduce((acc, inv) => acc.plus(new Decimal(inv.grandTotal.toString())), new Decimal(0))
+          .toNumber()
+      : monthlyInvoicesFallback
+          .reduce((acc, inv) => acc.plus(new Decimal(inv.grandTotal.toString())), new Decimal(0))
+          .toNumber();
 
     const invoiceCount = rangeInvoices.length;
 
@@ -396,7 +455,7 @@ export async function calculateTenantDashboardMetrics(
       };
     });
 
-    return {
+    const result: DashboardMetricsResult = {
       tenantId,
       currency: "INR",
       dateRange: {
@@ -424,6 +483,14 @@ export async function calculateTenantDashboardMetrics(
         pendingPayments: pendingPaymentAlerts,
       },
     };
+
+    // Store in tenant-isolated cache for 15 seconds
+    dashboardMetricsCache.set(cacheKey, {
+      data: result,
+      expiresAt: Date.now() + DASHBOARD_METRICS_CACHE_TTL_MS,
+    });
+
+    return result;
   } catch (error) {
     if (error instanceof Error && (error.name === "AssertionError" || error.message.includes("AssertionError"))) {
       throw error;

@@ -12,6 +12,7 @@ import {
   postPurchaseInvoiceAccounting,
   postSupplierPaymentAccounting,
 } from "@/lib/accounting/service";
+import { clearTenantDashboardMetricsCache } from "@/lib/dashboard/metrics";
 
 export interface CreateSupplierParams {
   tenantId: string;
@@ -400,6 +401,7 @@ export async function createPurchaseInvoice(
       }
     }
 
+    clearTenantDashboardMetricsCache(tenantId);
     return invoice;
   });
 }

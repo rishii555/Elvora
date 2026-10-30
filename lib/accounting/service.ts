@@ -1,4 +1,4 @@
-import prisma from "@/lib/db/prisma";
+import prisma, { runInTransaction } from "@/lib/db/prisma";
 import { Decimal } from "@/lib/finance/decimal";
 import { getIndianFinancialYear } from "@/lib/finance/decimal";
 import { getNextSequentialNumber } from "@/lib/invoices/service";
@@ -233,11 +233,7 @@ export async function postJournalEntry(
     return { isDuplicate: false, journalEntry: journal };
   };
 
-  if (typeof client.$transaction === "function") {
-    return await client.$transaction(executePost);
-  } else {
-    return await executePost(client);
-  }
+  return await runInTransaction(client, executePost);
 }
 
 /**

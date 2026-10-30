@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenantContext, TenantAuthorizationError } from "@/lib/tenant/context";
 
 export async function GET(req: NextRequest) {
+  const start = performance.now();
   try {
+    const authStart = performance.now();
     const context = await requireTenantContext(req);
-    return NextResponse.json({
+    const authDuration = performance.now() - authStart;
+
+    const totalDuration = performance.now() - start;
+
+    const response = NextResponse.json({
       user: {
         id: context.userId,
         name: context.userName,
@@ -16,6 +22,13 @@ export async function GET(req: NextRequest) {
         role: context.role,
       },
     });
+
+    response.headers.set(
+      "Server-Timing",
+      `auth;dur=${authDuration.toFixed(1)}, total;dur=${totalDuration.toFixed(1)}`
+    );
+
+    return response;
   } catch (error: unknown) {
     if (error instanceof TenantAuthorizationError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
