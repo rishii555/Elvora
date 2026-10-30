@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
 import { 
   Receipt, 
   Boxes, 
@@ -11,7 +14,15 @@ import {
 } from "lucide-react";
 import { ElvoraLogo } from "@/components/logo";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  if (sessionCookie) {
+    const session = await verifySessionToken(sessionCookie);
+    if (session && session.userId && session.activeTenantId) {
+      redirect("/dashboard");
+    }
+  }
   const industries = [
     "Retail Stores",
     "Wholesalers & Distributors",

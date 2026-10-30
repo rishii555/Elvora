@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { requireTenantContext, TenantAuthorizationError } from "@/lib/tenant/context";
-import { signSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { signSessionToken, SESSION_COOKIE_NAME, getSessionCookieOptions } from "@/lib/auth/session";
 
 const switchTenantSchema = z.object({
   targetTenantId: z.string().min(1, "Target tenant ID is required"),
@@ -63,13 +63,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    response.cookies.set(SESSION_COOKIE_NAME, newSessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
+    response.cookies.set(SESSION_COOKIE_NAME, newSessionToken, getSessionCookieOptions());
 
     return response;
   } catch (error: unknown) {

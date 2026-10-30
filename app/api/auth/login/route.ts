@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { verifyPassword, signSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { verifyPassword } from "@/lib/auth/passwords";
+import { signSessionToken, SESSION_COOKIE_NAME, getSessionCookieOptions } from "@/lib/auth/session";
 import { checkRateLimit, resetRateLimit } from "@/lib/auth/rate-limiter";
 
 const loginSchema = z.object({
@@ -84,13 +85,7 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        response.cookies.set(SESSION_COOKIE_NAME, token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 60 * 60 * 24 * 7,
-        });
+        response.cookies.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions());
 
         return response;
       }
@@ -126,13 +121,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      response.cookies.set(SESSION_COOKIE_NAME, token, {
-        httpOnly: true,
-        secure: false, // Demo mode only runs in non-production
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 7,
-      });
+      response.cookies.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions());
 
       return response;
     }

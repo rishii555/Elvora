@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { hashPassword, verifyPassword, signSessionToken, verifySessionToken } from "../lib/auth/session";
+import { hashPassword, verifyPassword } from "../lib/auth/passwords";
+import { signSessionToken, verifySessionToken } from "../lib/auth/session";
 import { requireTenantContext, TenantAuthorizationError } from "../lib/tenant/context";
 import { hasPermission, requirePermission, PermissionDeniedError } from "../lib/auth/permissions";
 import { checkRateLimit } from "../lib/auth/rate-limiter";

@@ -35,19 +35,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     fetch("/api/auth/me")
       .then((res) => {
+        if (res.status === 401) {
+          router.push("/login");
+          return null;
+        }
         if (!res.ok) throw new Error("Unauthorized");
         return res.json();
       })
-      .then((data) => setProfile(data))
-      .catch(() => {
-        // Fallback for visual design inspection if server cookie is not yet signed
-        setProfile({
-          user: { id: "u-1", name: "Rishi Kumar", email: "rishi@elvora.in" },
-          tenant: { id: "t-1", name: "Acme Global Enterprise", role: "OWNER" },
-        });
+      .then((data) => {
+        if (data && isMounted) {
+          setProfile(data);
+        }
+      })
+      .catch((err) => {
+        console.warn("Session profile fetch notice:", err);
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   const handleLogout = async () => {

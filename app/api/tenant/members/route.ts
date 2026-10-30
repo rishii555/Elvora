@@ -5,7 +5,7 @@ import { requireTenantContext, TenantAuthorizationError } from "@/lib/tenant/con
 import { requirePermission, PermissionDeniedError } from "@/lib/auth/permissions";
 import { checkPlanLimit } from "@/lib/billing/service";
 import { PlanLimitExceededError } from "@/lib/billing/types";
-import { hashPassword } from "@/lib/auth/session";
+import { hashPassword } from "@/lib/auth/passwords";
 
 const AddMemberSchema = z.object({
   email: z.string().email("Valid email required"),

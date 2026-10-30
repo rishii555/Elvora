@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { hashPassword, verifyPassword } from "@/lib/auth/session";
+import { hashPassword, verifyPassword } from "@/lib/auth/passwords";
 import { signPlatformAdminToken, ADMIN_COOKIE_NAME } from "@/lib/admin/auth";
 import { checkRateLimit, resetRateLimit } from "@/lib/auth/rate-limiter";
 

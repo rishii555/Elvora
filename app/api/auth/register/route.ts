@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { hashPassword, signSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { hashPassword } from "@/lib/auth/passwords";
+import { signSessionToken, SESSION_COOKIE_NAME, getSessionCookieOptions } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/auth/rate-limiter";
 import { createVerificationToken } from "@/lib/auth/tokens";
 import { sendVerificationEmail } from "@/lib/email/service";
@@ -170,14 +171,8 @@ export async function POST(req: NextRequest) {
       tenantId: result.tenant.id,
     });
 
-    // Set secure HTTP-only cookie
-    response.cookies.set(SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
+    // Set secure HTTP-only cookie (7-day session)
+    response.cookies.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions());
 
     return response;
   } catch (error: unknown) {

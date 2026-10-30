@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 
 function getSessionSecret(): Uint8Array {
@@ -14,6 +13,9 @@ function getSessionSecret(): Uint8Array {
 
 export const SESSION_COOKIE_NAME = "elvora_session";
 
+// 7 days in seconds = 604,800 seconds
+export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+
 export interface SessionPayload {
   userId: string;
   email: string;
@@ -24,21 +26,21 @@ export interface SessionPayload {
 }
 
 /**
- * Hashes a plaintext password using bcrypt with salt rounds = 12.
+ * Standard cookie configuration for Elvora sessions.
+ * Guarantees consistent options across login, middleware, and logout.
  */
-export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 12);
+export function getSessionCookieOptions(maxAge: number = SESSION_MAX_AGE_SECONDS) {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge,
+  };
 }
 
 /**
- * Compares a plaintext password with a bcrypt hash.
- */
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(password, hash);
-}
-
-/**
- * Signs a tamper-proof JWT session token valid for 7 days.
+ * Signs a tamper-proof JWT session token valid for 7 days (604,800 seconds).
  */
 export async function signSessionToken(payload: Omit<SessionPayload, "exp">): Promise<string> {
   return new SignJWT({ ...payload })
