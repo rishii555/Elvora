@@ -189,13 +189,6 @@ export default async function HomePage() {
                 <span className="h-3 w-3 rounded-full bg-emerald-400" />
                 <span className="ml-3 text-xs font-bold text-[#111827]">Elvora Workspace — Counter POS</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live Counter
-                </span>
-                <span className="text-xs text-[#64748B] hidden sm:inline">INV-2026-0001</span>
-              </div>
             </div>
 
             {/* Interactive Billing Preview Grid */}
