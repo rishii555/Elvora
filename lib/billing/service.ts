@@ -45,7 +45,7 @@ export const SYSTEM_PLANS: SystemPlanDef[] = [
   {
     code: "GROWTH",
     name: "Growth Professional",
-    description: "Engineered for scaling wholesalers, sanitaryware showrooms, and high-volume outlets.",
+    description: "Engineered for scaling wholesalers, retail chains, and high-volume commerce outlets.",
     priceMonthly: 1499,
     priceYearly: 14990,
     maxProducts: 5000,

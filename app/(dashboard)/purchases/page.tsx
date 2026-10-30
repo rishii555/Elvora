@@ -1097,7 +1097,7 @@ export default function UniversalPurchasesPage() {
                 required
                 value={newSupName}
                 onChange={(e) => setNewSupName(e.target.value)}
-                placeholder="e.g. Jaquar Bath Fittings"
+                placeholder="e.g. Metro Supplies & Traders"
               />
             </div>
 
@@ -1106,7 +1106,7 @@ export default function UniversalPurchasesPage() {
               <Input
                 value={newSupCompany}
                 onChange={(e) => setNewSupCompany(e.target.value)}
-                placeholder="e.g. Jaquar & Company Pvt Ltd"
+                placeholder="e.g. Metro Global Distributors Pvt Ltd"
               />
             </div>
 

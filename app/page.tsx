@@ -267,7 +267,7 @@ export default function HomePage() {
                     <span className="text-3xl font-extrabold text-slate-900">₹1,499</span>
                     <span className="text-xs text-slate-500"> / month</span>
                   </div>
-                  <p className="text-xs text-slate-600">For wholesalers, multi-counter stores, and sanitaryware showrooms.</p>
+                  <p className="text-xs text-slate-600">For wholesalers, multi-counter stores, retail outlets, and modern enterprises.</p>
                   <ul className="space-y-2 text-xs text-slate-700 pt-2 border-t border-slate-100">
                     <li>✓ <strong>Unlimited Invoices</strong></li>
                     <li>✓ 5,000 Products</li>

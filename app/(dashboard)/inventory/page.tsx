@@ -112,18 +112,18 @@ export default function UniversalInventoryPage() {
     name: "",
     sku: "",
     barcode: "",
-    brand: "Jaquar",
-    category: "CP Bathroom Fittings",
+    brand: "",
+    category: "General",
     model: "",
     size: "",
-    colorFinish: "Chrome Plated",
-    uom: "PCS" as "PCS" | "SET" | "BOX",
-    hsnCode: "8481",
+    colorFinish: "",
+    uom: "PCS" as "PCS" | "SET" | "BOX" | "KG" | "MTR" | "LTR" | "PKT",
+    hsnCode: "",
     gstRate: "18",
     purchasePrice: "",
     sellingPrice: "",
     mrp: "",
-    openingStock: "10",
+    openingStock: "0",
     minStockAlert: "5",
   });
 
@@ -138,15 +138,15 @@ export default function UniversalInventoryPage() {
     return ["ALL", ...Array.from(set)];
   }, [items]);
 
-  const finishes = [
-    "ALL",
-    "Chrome Plated",
-    "Matte Black",
-    "Rose Gold",
-    "Glossy White",
-    "Brush Gold",
-    "Graphite",
-  ];
+  const finishes = useMemo(() => {
+    const set = new Set(
+      items
+        .map((i) => i.colorFinish?.trim())
+        .filter((f): f is string => Boolean(f && f !== "—" && f !== "" && f !== "N/A"))
+    );
+    const list = Array.from(set);
+    return list.length > 0 ? ["ALL", ...list] : [];
+  }, [items]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -209,18 +209,18 @@ export default function UniversalInventoryPage() {
         name: "",
         sku: "",
         barcode: "",
-        brand: "Jaquar",
-        category: "CP Bathroom Fittings",
+        brand: "",
+        category: "General",
         model: "",
         size: "",
-        colorFinish: "Chrome Plated",
+        colorFinish: "",
         uom: "PCS",
-        hsnCode: "8481",
+        hsnCode: "",
         gstRate: "18",
         purchasePrice: "",
         sellingPrice: "",
         mrp: "",
-        openingStock: "10",
+        openingStock: "0",
         minStockAlert: "5",
       });
     } catch {
@@ -356,7 +356,7 @@ export default function UniversalInventoryPage() {
               <Sparkles className="h-3.5 w-3.5 text-blue-600" />
               Elvora Inventory
             </span>
-            <span className="text-xs text-slate-400 font-mono">Sanitaryware & CP Hub</span>
+            <span className="text-xs text-slate-400 font-mono">Products & Stock Hub</span>
             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 uppercase">
               {userRole}
             </span>
@@ -366,7 +366,7 @@ export default function UniversalInventoryPage() {
             Catalog & Stock Management
           </h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            Real-time multi-location tracking, sanitaryware variants, HSN tax classifications, and audit ledger
+            Real-time multi-location tracking, product variants, HSN tax classifications, and inventory audit ledger
           </p>
         </div>
 
@@ -395,7 +395,7 @@ export default function UniversalInventoryPage() {
             size="sm"
             className="bg-blue-600 hover:bg-blue-700 font-semibold text-xs shadow-xs"
           >
-            <Plus className="mr-1.5 h-4 w-4" /> Add Sanitary / CP Item
+            <Plus className="mr-1.5 h-4 w-4" /> Add Product / Item
           </Button>
         </div>
       </div>
@@ -413,7 +413,7 @@ export default function UniversalInventoryPage() {
             </span>
           </div>
           <p className="mt-2 text-2xl font-bold text-slate-900">{valuationData.totalSkus}</p>
-          <span className="text-xs text-slate-400">Taps, Basins, Showers & Closets</span>
+          <span className="text-xs text-slate-400">Total active products across categories</span>
         </div>
 
         {/* Total Physical Units */}
@@ -427,7 +427,7 @@ export default function UniversalInventoryPage() {
             </span>
           </div>
           <p className="mt-2 text-2xl font-bold text-slate-900">{valuationData.totalUnits} <span className="text-sm font-normal text-slate-500">units</span></p>
-          <span className="text-xs text-slate-400">Across Godown & Showroom</span>
+          <span className="text-xs text-slate-400">Total units across all store locations</span>
         </div>
 
         {/* Low Stock Alerts */}
@@ -524,23 +524,25 @@ export default function UniversalInventoryPage() {
           </div>
         </div>
 
-        {/* Quick Finish / Color Chips */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100">
-          <span className="text-[11px] font-semibold text-slate-400 mr-1">Finishes:</span>
-          {finishes.map((fin) => (
-            <button
-              key={fin}
-              onClick={() => setSelectedFinish(fin)}
-              className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
-                selectedFinish === fin
-                  ? "bg-blue-600 text-white font-semibold"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {fin === "ALL" ? "All Finishes" : fin}
-            </button>
-          ))}
-        </div>
+        {/* Quick Finish / Variant Chips (shown dynamically when items have variants) */}
+        {finishes.length > 1 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100">
+            <span className="text-[11px] font-semibold text-slate-400 mr-1">Variants:</span>
+            {finishes.map((fin) => (
+              <button
+                key={fin}
+                onClick={() => setSelectedFinish(fin)}
+                className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+                  selectedFinish === fin
+                    ? "bg-blue-600 text-white font-semibold"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {fin === "ALL" ? "All Variants" : fin}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main Table View */}
@@ -549,7 +551,7 @@ export default function UniversalInventoryPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Product & Model</TableHead>
-              <TableHead>Finish & Size</TableHead>
+              <TableHead>Variant / Attributes</TableHead>
               <TableHead>HSN / Tax</TableHead>
               <TableHead className="text-right">Cost Price</TableHead>
               <TableHead className="text-right">Selling Price</TableHead>
@@ -568,8 +570,8 @@ export default function UniversalInventoryPage() {
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-12 text-slate-400">
                   <Package className="mx-auto h-8 w-8 text-slate-300 mb-2" />
-                  <p className="font-medium text-slate-700">No matching sanitaryware products found</p>
-                  <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search keywords</p>
+                  <p className="font-medium text-slate-700">No matching products found</p>
+                  <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search keywords, or add your first product</p>
                 </TableCell>
               </TableRow>
             ) : (
@@ -766,9 +768,9 @@ export default function UniversalInventoryPage() {
               >
                 <option value="AUDIT_CORRECTION">Audit Correction (Physical Verification)</option>
                 <option value="OPENING_STOCK">Opening Stock Batch Setup</option>
-                <option value="DAMAGED">Damaged / Chipped Sanitaryware</option>
+                <option value="DAMAGED">Damaged / Defective Stock</option>
                 <option value="SCRAPPED">Scrapped / Obsolete Model</option>
-                <option value="INTERNAL_USE">Showroom Display / Sample Unit</option>
+                <option value="INTERNAL_USE">Store Display / Sample / Internal Use</option>
                 <option value="THEFT_OR_LOSS">Theft or Missing Stock</option>
               </select>
             </div>
@@ -781,7 +783,7 @@ export default function UniversalInventoryPage() {
                 type="text"
                 value={adjustmentNotes}
                 onChange={(e) => setAdjustmentNotes(e.target.value)}
-                placeholder="e.g. Broken pedestal during unloading batch #82"
+                placeholder="e.g. Physical inventory count mismatch correction"
               />
             </div>
 
@@ -890,7 +892,7 @@ export default function UniversalInventoryPage() {
       <Dialog
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        title="Import Sanitaryware & CP Catalog CSV"
+        title="Import Product Catalog CSV"
       >
         <div className="space-y-4 pt-2">
           <p className="text-xs text-slate-500">
@@ -902,7 +904,7 @@ export default function UniversalInventoryPage() {
             value={csvInput}
             onChange={(e) => setCsvInput(e.target.value)}
             placeholder={`Product Name,SKU,Brand,Category,Model,Size,Finish,UOM,HSN Code,GST Rate,Purchase Cost,Selling Price,MRP,Current Stock,Min Stock Alert
-Ceramic Basin,BASIN-550,Kohler,Sanitaryware,Rimless,550x400 mm,Glossy White,PCS,6910,18,3200,4800,5500,10,3`}
+Wireless Optical Mouse,MOU-WL-01,Logitech,Electronics,M185,Standard,Black,PCS,8471,18,450,750,850,25,5`}
             className="w-full rounded-xl border border-slate-200 p-2.5 font-mono text-xs focus:border-blue-500 focus:outline-none"
           />
 
@@ -945,7 +947,7 @@ Ceramic Basin,BASIN-550,Kohler,Sanitaryware,Rimless,550x400 mm,Glossy White,PCS,
       <Dialog
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title="Add Sanitaryware / CP Fitting Product"
+        title="Add New Product / Inventory Item"
       >
         <form onSubmit={handleCreateProduct} className="space-y-4 pt-2">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -957,7 +959,7 @@ Ceramic Basin,BASIN-550,Kohler,Sanitaryware,Rimless,550x400 mm,Glossy White,PCS,
                 required
                 value={newItem.name}
                 onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                placeholder="e.g. Single Lever Basin Mixer"
+                placeholder="e.g. Wireless Mouse, Cotton Shirt, or Industrial Drill"
               />
             </div>
 
@@ -969,7 +971,7 @@ Ceramic Basin,BASIN-550,Kohler,Sanitaryware,Rimless,550x400 mm,Glossy White,PCS,
                 required
                 value={newItem.sku}
                 onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
-                placeholder="e.g. JAQ-MIX-CRM-01"
+                placeholder="e.g. PRD-1001"
               />
             </div>
 
@@ -989,7 +991,7 @@ Ceramic Basin,BASIN-550,Kohler,Sanitaryware,Rimless,550x400 mm,Glossy White,PCS,
               <Input
                 value={newItem.brand}
                 onChange={(e) => setNewItem({ ...newItem, brand: e.target.value })}
-                placeholder="e.g. Jaquar, Kohler, Hindware"
+                placeholder="e.g. Samsung, Nike, Bosch, Philips"
               />
             </div>
 
@@ -998,56 +1000,53 @@ Ceramic Basin,BASIN-550,Kohler,Sanitaryware,Rimless,550x400 mm,Glossy White,PCS,
               <Input
                 value={newItem.category}
                 onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                placeholder="e.g. CP Bathroom Fittings, Sanitaryware Ceramic"
+                placeholder="e.g. Electronics, Apparel, Hardware, FMCG"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Model / Variant
+                Model / Edition
               </label>
               <Input
                 value={newItem.model}
                 onChange={(e) => setNewItem({ ...newItem, model: e.target.value })}
-                placeholder="e.g. Concealed Wall Mounted, Rimless"
+                placeholder="e.g. Pro, V2, Wireless, Slim"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Size / Dimension</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Size / Dimension / Spec</label>
               <Input
                 value={newItem.size}
                 onChange={(e) => setNewItem({ ...newItem, size: e.target.value })}
-                placeholder="e.g. 18x12 inch, 550x400 mm"
+                placeholder="e.g. M, XL, 500g, 100ml, 15-inch"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Finish / Color</label>
-              <select
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Variant / Color / Attribute</label>
+              <Input
                 value={newItem.colorFinish}
                 onChange={(e) => setNewItem({ ...newItem, colorFinish: e.target.value })}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
-              >
-                <option value="Chrome Plated">Chrome Plated</option>
-                <option value="Matte Black">Matte Black</option>
-                <option value="Rose Gold">Rose Gold</option>
-                <option value="Glossy White">Glossy White</option>
-                <option value="Brush Gold">Brush Gold</option>
-                <option value="Graphite">Graphite</option>
-              </select>
+                placeholder="e.g. Black, Blue, 256GB, Standard"
+              />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Unit (UOM)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Unit of Measure (UOM)</label>
               <select
                 value={newItem.uom}
                 onChange={(e: any) => setNewItem({ ...newItem, uom: e.target.value })}
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
               >
-                <option value="PCS">PCS (Pieces)</option>
-                <option value="SET">SET (Sets)</option>
-                <option value="BOX">BOX (Boxes)</option>
+                <option value="PCS">PCS (Pieces / Units)</option>
+                <option value="BOX">BOX (Boxes / Cartons)</option>
+                <option value="SET">SET (Sets / Pairs)</option>
+                <option value="KG">KG (Kilograms)</option>
+                <option value="MTR">MTR (Meters)</option>
+                <option value="LTR">LTR (Liters)</option>
+                <option value="PKT">PKT (Packets)</option>
               </select>
             </div>
 
@@ -1056,7 +1055,7 @@ Ceramic Basin,BASIN-550,Kohler,Sanitaryware,Rimless,550x400 mm,Glossy White,PCS,
               <Input
                 value={newItem.hsnCode}
                 onChange={(e) => setNewItem({ ...newItem, hsnCode: e.target.value })}
-                placeholder="6910 (Ceramic) or 8481 (Taps)"
+                placeholder="e.g. 8471, 6205, 1006"
               />
             </div>
 

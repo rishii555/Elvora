@@ -234,7 +234,7 @@ export default function ExpensesCashbookPage() {
           <div>
             <Input
               label="Expense Description & Narration"
-              placeholder="e.g. Tempo freight for Jaquar ceramic delivery to site"
+              placeholder="e.g. Inward freight transport or store utility maintenance"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />

@@ -589,7 +589,7 @@ export default function ShopSettingsPage() {
               <div>
                 <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Growth Pro</span>
                 <div className="mt-2 text-2xl font-extrabold text-slate-900">₹1,499 <span className="text-xs text-slate-500 font-normal">/ mo</span></div>
-                <p className="text-xs text-slate-600 mt-1">For wholesalers, high-volume counters and sanitaryware showrooms.</p>
+                <p className="text-xs text-slate-600 mt-1">For wholesalers, distributors, multi-counter stores and growing businesses.</p>
                 <ul className="mt-3 space-y-1.5 text-xs text-slate-700">
                   <li>✓ <strong>Unlimited Invoices</strong></li>
                   <li>✓ 5,000 Product Varieties</li>

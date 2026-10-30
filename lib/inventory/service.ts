@@ -471,7 +471,7 @@ export async function calculateInventoryValuation(
 }
 
 /**
- * Retrieves paginated catalog with sanitaryware / CP fittings filters and RBAC cost masking.
+ * Retrieves paginated catalog with product variants/attributes filters and RBAC cost masking.
  */
 export async function listInventoryItems(params: ListInventoryParams, client: any = prisma) {
   const {
@@ -569,12 +569,12 @@ export async function listInventoryItems(params: ListInventoryParams, client: an
       sku: v.sku,
       barcode: v.barcode || v.product.barcode || "",
       brand: v.product.brand?.name || "Generic",
-      category: v.product.category?.name || "Sanitaryware",
+      category: v.product.category?.name || "General",
       model: v.model || "",
       size: v.size || "",
       colorFinish: v.colorFinish || "",
       uom: v.product.uom,
-      hsnCode: v.product.hsnCode || "6910",
+      hsnCode: v.product.hsnCode || "",
       sellingPrice: v.sellingPrice,
       mrp: v.mrp,
       gstRate: v.gstRate,

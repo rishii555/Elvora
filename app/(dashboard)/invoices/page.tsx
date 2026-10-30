@@ -124,11 +124,11 @@ export default function InvoiceHistoryPage() {
     }>
   >([
     {
-      variantId: "v-jaq-01",
-      name: "Single Lever Basin Mixer",
-      sku: "JAQ-MIX-CRM-01",
+      variantId: "",
+      name: "",
+      sku: "",
       quantity: 1,
-      unitPrice: 2850,
+      unitPrice: 0,
       discountPercent: 0,
       gstRate: 18,
       isTaxInclusive: false,
