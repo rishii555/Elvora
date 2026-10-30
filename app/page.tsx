@@ -146,14 +146,14 @@ export default async function HomePage() {
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5 sm:gap-4">
               <Link
                 href="/register"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-6 py-3.5 text-sm sm:text-base font-semibold text-white shadow-sm hover:bg-[#1D4ED8] active:bg-blue-800 transition-all"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-6 py-3.5 text-sm sm:text-base font-semibold text-white shadow-sm hover:bg-[#1D4ED8] active:bg-blue-800 transition-all"
               >
                 Get Started Free
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center rounded-xl border border-[#E2E8F0] bg-white px-6 py-3.5 text-sm sm:text-base font-semibold text-[#111827] hover:bg-slate-50 transition-colors shadow-xs"
+                className="inline-flex items-center justify-center rounded-lg border border-[#E2E8F0] bg-white px-6 py-3.5 text-sm sm:text-base font-semibold text-[#111827] hover:bg-slate-50 transition-colors shadow-xs"
               >
                 Sign In
               </Link>
@@ -168,7 +168,7 @@ export default async function HomePage() {
                 {industries.map((ind) => (
                   <span
                     key={ind}
-                    className="rounded-full bg-white border border-[#E2E8F0] px-3 py-1 text-xs font-medium text-[#475569] shadow-2xs hover:border-slate-300 transition-colors"
+                    className="rounded-lg bg-white border border-[#E2E8F0] px-3.5 py-1.5 text-xs font-medium text-[#475569] shadow-2xs hover:border-slate-300 transition-colors"
                   >
                     {ind}
                   </span>
@@ -180,7 +180,7 @@ export default async function HomePage() {
 
         {/* 3. High-Fidelity Product UI Preview */}
         <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6">
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-3 sm:p-5 shadow-lg shadow-slate-200/50">
+          <div className="rounded-xl border border-[#E2E8F0] bg-white p-3 sm:p-5 shadow-lg shadow-slate-200/50">
             {/* Window Topbar */}
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3 px-2">
               <div className="flex items-center gap-2">
@@ -202,8 +202,8 @@ export default async function HomePage() {
                   <span className="text-xs text-[#64748B]">Press F2 to Search</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div className="rounded-xl border border-[#E2E8F0] bg-slate-50/70 p-3 hover:border-blue-300 transition-colors">
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">Hardware & Tools</span>
+                  <div className="rounded-lg border border-[#E2E8F0] bg-slate-50/70 p-3 hover:border-blue-300 transition-colors">
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">Hardware & Tools</span>
                     <h4 className="mt-1 text-xs font-bold text-[#111827]">Heavy Duty Power Drill 750W</h4>
                     <div className="mt-2 flex items-center justify-between">
                       <span className="text-xs font-extrabold text-[#111827]">₹2,850.00</span>
@@ -211,8 +211,8 @@ export default async function HomePage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-[#E2E8F0] bg-slate-50/70 p-3 hover:border-blue-300 transition-colors">
-                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Apparel</span>
+                  <div className="rounded-lg border border-[#E2E8F0] bg-slate-50/70 p-3 hover:border-blue-300 transition-colors">
+                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">Apparel</span>
                     <h4 className="mt-1 text-xs font-bold text-[#111827]">Executive Formal Shirt - L</h4>
                     <div className="mt-2 flex items-center justify-between">
                       <span className="text-xs font-extrabold text-[#111827]">₹1,299.00</span>
@@ -220,8 +220,8 @@ export default async function HomePage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-[#E2E8F0] bg-slate-50/70 p-3 hover:border-blue-300 transition-colors">
-                    <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded">Electronics</span>
+                  <div className="rounded-lg border border-[#E2E8F0] bg-slate-50/70 p-3 hover:border-blue-300 transition-colors">
+                    <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-md">Electronics</span>
                     <h4 className="mt-1 text-xs font-bold text-[#111827]">Wireless Optical Mouse (Silent)</h4>
                     <div className="mt-2 flex items-center justify-between">
                       <span className="text-xs font-extrabold text-[#111827]">₹899.00</span>
@@ -229,8 +229,8 @@ export default async function HomePage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-[#E2E8F0] bg-slate-50/70 p-3 hover:border-blue-300 transition-colors">
-                    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">Services</span>
+                  <div className="rounded-lg border border-[#E2E8F0] bg-slate-50/70 p-3 hover:border-blue-300 transition-colors">
+                    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md">Services</span>
                     <h4 className="mt-1 text-xs font-bold text-[#111827]">Annual IT Maintenance Retainer</h4>
                     <div className="mt-2 flex items-center justify-between">
                       <span className="text-xs font-extrabold text-[#111827]">₹15,000.00</span>
@@ -241,7 +241,7 @@ export default async function HomePage() {
               </div>
 
               {/* Right Column: Active Bill Summary */}
-              <div className="lg:col-span-5 rounded-xl border border-[#E2E8F0] bg-white p-4 flex flex-col justify-between">
+              <div className="lg:col-span-5 rounded-lg border border-[#E2E8F0] bg-white p-4 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
                     <span className="text-xs font-bold text-[#111827]">Tax Invoice Summary</span>
@@ -303,10 +303,10 @@ export default async function HomePage() {
               return (
                 <div
                   key={feat.title}
-                  className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between"
+                  className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between"
                 >
                   <div>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB] border border-blue-100">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-50 text-[#2563EB] border border-blue-100">
                       <Icon className="h-5 w-5" />
                     </div>
                     <h3 className="mt-4 text-base font-bold text-[#111827]">{feat.title}</h3>
@@ -338,8 +338,8 @@ export default async function HomePage() {
             </div>
 
             <div className="grid gap-8 md:grid-cols-3 text-center md:text-left">
-              <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-6">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#2563EB] text-white font-bold text-sm">
+              <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-6">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#2563EB] text-white font-bold text-sm">
                   1
                 </span>
                 <h3 className="mt-4 text-base font-bold text-[#111827]">Set Up Store Workspace</h3>
@@ -348,8 +348,8 @@ export default async function HomePage() {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-6">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#0F172A] text-white font-bold text-sm">
+              <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-6">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#0F172A] text-white font-bold text-sm">
                   2
                 </span>
                 <h3 className="mt-4 text-base font-bold text-[#111827]">Add Products & Batches</h3>
@@ -358,8 +358,8 @@ export default async function HomePage() {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-6">
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#0D9488] text-white font-bold text-sm">
+              <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-6">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#0D9488] text-white font-bold text-sm">
                   3
                 </span>
                 <h3 className="mt-4 text-base font-bold text-[#111827]">Bill, Collect & Scale</h3>
@@ -374,7 +374,7 @@ export default async function HomePage() {
         {/* 6. Commercial SaaS Pricing Section */}
         <section className="bg-[#F8FAFC] px-4 py-20 sm:px-6 lg:py-24">
           <div className="mx-auto max-w-7xl text-center space-y-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#2563EB] bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#2563EB] bg-blue-50 px-3 py-1 rounded-md border border-blue-200">
               Transparent Commercial Pricing
             </span>
             <h2 className="text-3xl font-extrabold text-[#111827] sm:text-4xl">
@@ -386,7 +386,7 @@ export default async function HomePage() {
 
             <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4 text-left">
               {/* Plan 1: Free Trial */}
-              <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs flex flex-col justify-between">
+              <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-xs flex flex-col justify-between">
                 <div className="space-y-4">
                   <div className="inline-block rounded-md bg-slate-100 px-2.5 py-1 text-xs font-bold text-[#475569]">
                     Free Trial
@@ -406,14 +406,14 @@ export default async function HomePage() {
                 </div>
                 <Link
                   href="/register"
-                  className="mt-6 block w-full rounded-xl border border-[#E2E8F0] py-2.5 text-center text-xs font-bold text-[#111827] hover:bg-slate-50 transition shadow-2xs"
+                  className="mt-6 block w-full rounded-lg border border-[#E2E8F0] py-2.5 text-center text-xs font-bold text-[#111827] hover:bg-slate-50 transition shadow-2xs"
                 >
                   Start Free Trial
                 </Link>
               </div>
 
               {/* Plan 2: Starter */}
-              <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs flex flex-col justify-between">
+              <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-xs flex flex-col justify-between">
                 <div className="space-y-4">
                   <div className="inline-block rounded-md bg-blue-50 px-2.5 py-1 text-xs font-bold text-[#2563EB] border border-blue-200">
                     Starter
@@ -433,15 +433,15 @@ export default async function HomePage() {
                 </div>
                 <Link
                   href="/register"
-                  className="mt-6 block w-full rounded-xl bg-[#0F172A] py-2.5 text-center text-xs font-bold text-white hover:bg-slate-800 transition shadow-xs"
+                  className="mt-6 block w-full rounded-lg bg-[#0F172A] py-2.5 text-center text-xs font-bold text-white hover:bg-slate-800 transition shadow-xs"
                 >
                   Choose Starter
                 </Link>
               </div>
 
               {/* Plan 3: Growth Pro (Most Popular) */}
-              <div className="rounded-2xl border-2 border-[#2563EB] bg-white p-6 shadow-lg shadow-blue-500/10 flex flex-col justify-between relative">
-                <span className="absolute -top-3 right-5 rounded-full bg-[#2563EB] px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-xs">
+              <div className="rounded-xl border-2 border-[#2563EB] bg-white p-6 shadow-lg shadow-blue-500/10 flex flex-col justify-between relative">
+                <span className="absolute -top-3 right-5 rounded-md bg-[#2563EB] px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-xs">
                   Most Popular
                 </span>
                 <div className="space-y-4">
@@ -463,14 +463,14 @@ export default async function HomePage() {
                 </div>
                 <Link
                   href="/register"
-                  className="mt-6 block w-full rounded-xl bg-[#2563EB] py-2.5 text-center text-xs font-bold text-white hover:bg-[#1D4ED8] transition shadow-xs"
+                  className="mt-6 block w-full rounded-lg bg-[#2563EB] py-2.5 text-center text-xs font-bold text-white hover:bg-[#1D4ED8] transition shadow-xs"
                 >
                   Get Growth Pro
                 </Link>
               </div>
 
               {/* Plan 4: Enterprise */}
-              <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs flex flex-col justify-between">
+              <div className="rounded-xl border border-[#E2E8F0] bg-white p-6 shadow-xs flex flex-col justify-between">
                 <div className="space-y-4">
                   <div className="inline-block rounded-md bg-slate-100 px-2.5 py-1 text-xs font-bold text-[#475569]">
                     Enterprise
@@ -490,7 +490,7 @@ export default async function HomePage() {
                 </div>
                 <Link
                   href="/register"
-                  className="mt-6 block w-full rounded-xl border border-[#E2E8F0] py-2.5 text-center text-xs font-bold text-[#111827] hover:bg-slate-50 transition shadow-2xs"
+                  className="mt-6 block w-full rounded-lg border border-[#E2E8F0] py-2.5 text-center text-xs font-bold text-[#111827] hover:bg-slate-50 transition shadow-2xs"
                 >
                   Contact Sales
                 </Link>
