@@ -1,4 +1,4 @@
-import prisma from "@/lib/db/prisma";
+import prisma, { runInTransaction } from "@/lib/db/prisma";
 import { Decimal } from "@/lib/finance/decimal";
 import { hasPermission, TenantRole } from "@/lib/auth/permissions";
 import { CrossTenantReferenceError, CrossTenantAccessDeniedError } from "@/lib/tenant/isolation";
@@ -116,7 +116,7 @@ export async function recordStockAdjustment(
     throw new Error("Quantity delta cannot be zero for stock adjustment");
   }
 
-  return await client.$transaction(async (tx: any) => {
+  return await runInTransaction(client, async (tx: any) => {
     // 1. Fetch tenant policy for negative stock
     const tenant = await tx.tenant.findUnique({
       where: { id: tenantId },
@@ -198,7 +198,7 @@ export async function processStockDeductionFromSale(
     return { idempotent: true, movements: existingMovements };
   }
 
-  return await client.$transaction(async (tx: any) => {
+  return await runInTransaction(client, async (tx: any) => {
     // 1. Fetch tenant policy
     const tenant = await tx.tenant.findUnique({
       where: { id: tenantId },
@@ -277,7 +277,7 @@ export async function processStockReceiptFromPurchase(
     return { idempotent: true, movements: existingMovements };
   }
 
-  return await client.$transaction(async (tx: any) => {
+  return await runInTransaction(client, async (tx: any) => {
     const createdMovements = [];
 
     for (const item of items) {
@@ -363,7 +363,7 @@ export async function processStockReturn(
 ) {
   const { tenantId, returnId, returnType, locationId, items } = params;
 
-  return await client.$transaction(async (tx: any) => {
+  return await runInTransaction(client, async (tx: any) => {
     const tenant = await tx.tenant.findUnique({
       where: { id: tenantId },
       select: { id: true, allowNegativeStock: true },

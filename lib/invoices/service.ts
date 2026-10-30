@@ -1,4 +1,4 @@
-import prisma from "@/lib/db/prisma";
+import prisma, { runInTransaction } from "@/lib/db/prisma";
 import { checkPlanLimit } from "@/lib/billing/service";
 import {
   calculateInvoiceItem,
@@ -203,7 +203,7 @@ export async function createSalesInvoice(
   const defaultPrefix = isTenantGstRegistered ? (isB2B ? "INV-" : "RET-") : "BOS-";
 
   // Execute entire invoice creation & stock deduction inside transaction
-  return await client.$transaction(async (tx: any) => {
+  return await runInTransaction(client, async (tx: any) => {
     // Generate sequential number
     const invoiceNumber = await getNextSequentialNumber(
       tenantId,
@@ -383,7 +383,7 @@ export async function cancelSalesInvoice(
     throw new Error("A cancellation reason is strictly required.");
   }
 
-  return await client.$transaction(async (tx: any) => {
+  return await runInTransaction(client, async (tx: any) => {
     const invoice = await tx.salesInvoice.findFirst({
       where: { id: invoiceId, tenantId },
       include: { items: true },
@@ -451,7 +451,7 @@ export async function createCreditNoteForInvoice(
 ) {
   const { tenantId, invoiceId, reason, items, userId } = params;
 
-  return await client.$transaction(async (tx: any) => {
+  return await runInTransaction(client, async (tx: any) => {
     const invoice = await tx.salesInvoice.findFirst({
       where: { id: invoiceId, tenantId },
       include: { items: true },
@@ -804,9 +804,5 @@ export async function recordCustomerPayment(
     };
   };
 
-  if (typeof client.$transaction === "function") {
-    return await client.$transaction(runPayment);
-  } else {
-    return await runPayment(client);
-  }
+  return await runInTransaction(client, runPayment);
 }

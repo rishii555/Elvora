@@ -1,4 +1,4 @@
-import prisma from "@/lib/db/prisma";
+import prisma, { runInTransaction } from "@/lib/db/prisma";
 import {
   calculateInvoiceItem,
   calculateInvoiceSummary,
@@ -184,7 +184,7 @@ export async function createPurchaseInvoice(
     throw new Error("Purchase invoice must contain at least one line item");
   }
 
-  return await client.$transaction(async (tx: any) => {
+  return await runInTransaction(client, async (tx: any) => {
     // 1. Validate Supplier & Tenant
     const [supplier, tenant] = await Promise.all([
       tx.supplier.findFirst({ where: { id: supplierId, tenantId } }),
@@ -426,7 +426,7 @@ export async function recordSupplierPayment(
     throw new Error("Payment amount must be greater than zero");
   }
 
-  return await client.$transaction(async (tx: any) => {
+  return await runInTransaction(client, async (tx: any) => {
     const supplier = await tx.supplier.findFirst({
       where: { id: supplierId, tenantId },
     });
@@ -538,7 +538,7 @@ export async function createPurchaseReturn(
     throw new Error("Must select at least one item to return");
   }
 
-  return await client.$transaction(async (tx: any) => {
+  return await runInTransaction(client, async (tx: any) => {
     const invoice = await tx.purchaseInvoice.findFirst({
       where: { id: purchaseInvoiceId, tenantId },
       include: { items: true, supplier: true },
@@ -669,7 +669,7 @@ export async function cancelPurchaseInvoice(
     throw new Error("A cancellation reason is required");
   }
 
-  return await client.$transaction(async (tx: any) => {
+  return await runInTransaction(client, async (tx: any) => {
     const invoice = await tx.purchaseInvoice.findFirst({
       where: { id: purchaseInvoiceId, tenantId },
       include: { items: true, supplier: true },

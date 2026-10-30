@@ -1,5 +1,5 @@
 import { z } from "zod";
-import prisma from "@/lib/db/prisma";
+import prisma, { runInTransaction } from "@/lib/db/prisma";
 import { hasPermission, TenantRole } from "@/lib/auth/permissions";
 
 export interface InventoryCsvRow {
@@ -268,7 +268,7 @@ export async function importInventoryRows(
 
   for (const row of rows) {
     try {
-      await client.$transaction(async (tx: any) => {
+      await runInTransaction(client, async (tx: any) => {
         // 1. Resolve or create Brand
         let brand = await tx.brand.findFirst({
           where: { tenantId, name: row.brand },

@@ -1,3 +1,5 @@
+import { runInTransaction } from "@/lib/db/prisma";
+
 export class CrossTenantAccessDeniedError extends Error {
   constructor(message = "Access Denied: Attempted cross-tenant data access") {
     super(message);
@@ -149,7 +151,7 @@ export async function createTenantScopedInvoice(
 ): Promise<any> {
   const { tenantId, userId, customerId, customerName, invoiceNumber, items, paidAmount, paymentMode } = input;
 
-  return prismaClient.$transaction(async (tx: any) => {
+  return runInTransaction(prismaClient, async (tx: any) => {
     // 1. Validate customer ownership if customerId provided
     if (customerId) {
       await validateEntityOwnership(tx, tenantId, "customer", customerId);
