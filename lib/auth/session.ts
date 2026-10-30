@@ -1,4 +1,5 @@
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT } from "jose/jwt/sign";
+import { jwtVerify } from "jose/jwt/verify";
 
 function getSessionSecret(): Uint8Array {
   const secret = process.env.SESSION_SECRET;

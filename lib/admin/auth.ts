@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT } from "jose/jwt/sign";
+import { jwtVerify } from "jose/jwt/verify";
 
 function getAdminSessionSecret(): Uint8Array {
   const secret =
