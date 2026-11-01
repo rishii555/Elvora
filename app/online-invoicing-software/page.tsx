@@ -16,21 +16,16 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { getBreadcrumbSchema, getFaqSchema, siteConfig } from "@/lib/seo/config";
 
 export const metadata: Metadata = {
-  title: "Online Invoicing Software | Create, Send & Track Digital Invoices | Elvora",
+  title: "Online Invoicing Software with Instant UPI QR",
   description:
-    "Fast cloud online invoicing software. Generate professional GST and commercial invoices, send via WhatsApp and email, collect payments with dynamic UPI QR codes, and automate recurring retainers.",
+    "Create professional digital invoices, share instant payment links via WhatsApp and email, and track unpaid accounts receivable in real time.",
   alternates: {
     canonical: `${siteConfig.url}/online-invoicing-software`,
-    languages: {
-      "en-IN": `${siteConfig.url}/online-invoicing-software`,
-      "en": `${siteConfig.url}/online-invoicing-software`,
-      "x-default": `${siteConfig.url}/online-invoicing-software`,
-    },
   },
   openGraph: {
-    title: "Online Invoicing Software for Modern Businesses | Elvora",
+    title: "Online Invoicing Software with Instant UPI QR | Elvora",
     description:
-      "Send professional invoices in seconds. Dynamic UPI QR codes, instant WhatsApp sharing, recurring billing schedules, and real-time payment tracking.",
+      "Create professional digital invoices, share instant payment links via WhatsApp and email, and track unpaid accounts receivable in real time.",
     url: `${siteConfig.url}/online-invoicing-software`,
   },
 };
@@ -121,7 +116,7 @@ export default function OnlineInvoicingSoftwarePage() {
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-6 py-3.5 text-sm font-semibold text-white shadow-xs hover:bg-[#1D4ED8] transition-all"
               >
-                Start Invoicing Free
+                Get Started Today
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
@@ -225,14 +220,14 @@ export default function OnlineInvoicingSoftwarePage() {
           <div className="max-w-3xl mx-auto space-y-4">
             <h2 className="text-2xl sm:text-3xl font-extrabold">Start Invoicing Smarter Today</h2>
             <p className="text-sm text-blue-100 max-w-xl mx-auto">
-              Create and share your first professional online invoice in under 2 minutes. Try risk-free for 14 days.
+              Create and share your first professional online invoice in under 2 minutes with Elvora.
             </p>
             <div className="pt-2 flex justify-center gap-4">
               <Link
                 href="/register"
                 className="rounded-lg bg-white px-6 py-3 text-xs sm:text-sm font-bold text-blue-600 shadow-sm hover:bg-slate-100 transition"
               >
-                Create Free Account
+                Register Your Store
               </Link>
               <Link
                 href="/gst-billing-software"

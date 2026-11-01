@@ -7,7 +7,7 @@ import { PublicFooter } from "@/components/public-footer";
 import { siteConfig } from "@/lib/seo/config";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | Elvora Multi-Tenant SaaS",
+  title: "Terms of Service",
   description:
     "Terms of Service, subscription limits, commercial billing agreements, and service level guidelines for Elvora SaaS users.",
   alternates: {
@@ -58,13 +58,13 @@ export default function TermsOfServicePage() {
           </section>
 
           <section className="pt-6 space-y-2">
-            <h2 className="text-base font-bold text-slate-900">2. Free Trial, Subscriptions & Server-Side Plan Limits</h2>
+            <h2 className="text-base font-bold text-slate-900">2. Subscriptions & Server-Side Plan Limits</h2>
             <p>
-              Elvora offers tiered subscriptions including a 14-day Free Trial. Each plan tier carries clearly documented server-side resource quotas:
+              Elvora offers tiered commercial subscriptions. Each plan tier carries clearly documented server-side resource quotas:
             </p>
             <ul className="list-disc pl-5 space-y-1">
               <li><strong>Plan Quotas:</strong> Monthly invoice generation thresholds, maximum active product varieties, and authorized staff seats are enforced on the server. Attempting to bypass frontend controls will be rejected by the API.</li>
-              <li><strong>Subscription Expiration:</strong> When your subscription period or trial concludes, your account transitions to read-only status. <strong>Your historical data will not be deleted or locked out</strong>. You may view and export existing documents, but issuing new billings beyond plan limits requires plan activation.</li>
+              <li><strong>Subscription Expiration:</strong> When your subscription period concludes, your account transitions to read-only status. <strong>Your historical data will not be deleted or locked out</strong>. You may view and export existing documents, but issuing new billings beyond plan limits requires plan renewal or activation.</li>
               <li><strong>Development Mock Billings:</strong> During platform testing, subscription transactions are executed via a development mock provider. No actual charges occur and simulated checkouts are not representations of commercial payment receipts.</li>
             </ul>
           </section>

@@ -108,8 +108,8 @@ export async function listPlatformTenants(
       createdAt: t.createdAt,
       owner: t.members[0]?.user || { name: "Owner", email: "—" },
       subscription: t.subscription || {
-        status: "TRIALING",
-        plan: { code: "FREE_TRIAL", name: "14-Day Free Trial", priceMonthly: 0 },
+        status: "ACTIVE",
+        plan: { code: "ENTERPRISE", name: "Enterprise Business", priceMonthly: 0 },
       },
     })),
     pagination: {
@@ -161,16 +161,24 @@ export async function updateTenantSubscriptionByAdmin(
   }
 
   if (!sub) {
-    // Upsert trial
-    const trialPlan = await client.subscriptionPlan.findUnique({ where: { code: "FREE_TRIAL" } });
+    const defaultPlan =
+      (await client.subscriptionPlan.findUnique({
+        where: { code: updateData.planCode || "ENTERPRISE" },
+      })) ||
+      (await client.subscriptionPlan.findFirst({
+        where: { isActive: true },
+      }));
+
+    if (!defaultPlan) throw new Error("No subscription plan available");
+
     sub = await client.subscription.create({
       data: {
         tenantId,
-        planId: updateData.planId || trialPlan.id,
-        status: updateData.status || "TRIALING",
+        planId: updateData.planId || defaultPlan.id,
+        status: updateData.status || (updateData.trialEndsAt ? "TRIALING" : "ACTIVE"),
         currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        trialEndsAt: updateData.trialEndsAt || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        trialEndsAt: updateData.trialEndsAt || null,
       },
       include: { plan: true },
     });

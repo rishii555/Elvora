@@ -340,7 +340,11 @@ describe("ShopLedger Comprehensive Reporting & Reconciliation Suite", () => {
     });
 
     it("generates sales summary accurately separating taxable turnover, taxes, collections and dues", async () => {
-      const report = await getSalesReport(TENANT_A, { period: "monthly" }, mockDb);
+      const report = await getSalesReport(
+        TENANT_A,
+        { period: "monthly", startDate: "2026-10-01", endDate: "2026-10-31" },
+        mockDb
+      );
 
       expect(report.summary.invoiceCount).toBe(2);
       expect(report.summary.taxableTurnover).toBe(18400); // 14,000 + 4,400
@@ -353,7 +357,11 @@ describe("ShopLedger Comprehensive Reporting & Reconciliation Suite", () => {
     });
 
     it("generates sales breakdown by product", async () => {
-      const report = await getSalesReport(TENANT_A, { breakdown: "product" }, mockDb);
+      const report = await getSalesReport(
+        TENANT_A,
+        { breakdown: "product", startDate: "2026-10-01", endDate: "2026-10-31" },
+        mockDb
+      );
 
       expect(report.items.length).toBe(2);
       const basin = report.items.find((i: any) => i.sku === "JQR-BASIN-01");
@@ -366,19 +374,31 @@ describe("ShopLedger Comprehensive Reporting & Reconciliation Suite", () => {
     });
 
     it("generates sales breakdown by brand and category", async () => {
-      const brandReport = await getSalesReport(TENANT_A, { breakdown: "brand" }, mockDb);
+      const brandReport = await getSalesReport(
+        TENANT_A,
+        { breakdown: "brand", startDate: "2026-10-01", endDate: "2026-10-31" },
+        mockDb
+      );
       expect(brandReport.items.length).toBe(2);
       expect(brandReport.items[0].brandName).toBe("Jaquar");
       expect(brandReport.items[0].totalAmount).toBe(16520);
 
-      const catReport = await getSalesReport(TENANT_A, { breakdown: "category" }, mockDb);
+      const catReport = await getSalesReport(
+        TENANT_A,
+        { breakdown: "category", startDate: "2026-10-01", endDate: "2026-10-31" },
+        mockDb
+      );
       expect(catReport.items.length).toBe(2);
       expect(catReport.items[0].categoryName).toBe("Sanitaryware");
       expect(catReport.items[0].totalAmount).toBe(16520);
     });
 
     it("generates sales breakdown by customer", async () => {
-      const custReport = await getSalesReport(TENANT_A, { breakdown: "customer" }, mockDb);
+      const custReport = await getSalesReport(
+        TENANT_A,
+        { breakdown: "customer", startDate: "2026-10-01", endDate: "2026-10-31" },
+        mockDb
+      );
       const apex = custReport.items.find((c: any) => c.customerName === "Apex Luxury Interiors");
 
       expect(apex?.totalAmount).toBe(16520);
@@ -431,7 +451,11 @@ describe("ShopLedger Comprehensive Reporting & Reconciliation Suite", () => {
     });
 
     it("computes purchase summaries, freight, ITC and supplier payables accurately", async () => {
-      const report = await getPurchaseReport(TENANT_A, {}, mockDb);
+      const report = await getPurchaseReport(
+        TENANT_A,
+        { startDate: "2026-10-01", endDate: "2026-10-31" },
+        mockDb
+      );
 
       expect(report.summary.billCount).toBe(1);
       expect(report.summary.taxableAmount).toBe(20000);

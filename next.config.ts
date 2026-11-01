@@ -1,3 +1,4 @@
+
 import type { NextConfig } from "next";
 
 const securityHeaders = [
@@ -43,8 +44,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: process.cwd(),
   poweredByHeader: false,
   reactStrictMode: true,
+
   async headers() {
     return [
       {

@@ -8,16 +8,16 @@ import { getBreadcrumbSchema, getFaqSchema, siteConfig } from "@/lib/seo/config"
 import { InvoiceGeneratorClient } from "./client";
 
 export const metadata: Metadata = {
-  title: "Free GST Invoice Generator Online | Create & Print Indian Tax Invoices",
+  title: "Online GST Invoice Generator & PDF Maker",
   description:
-    "Free online GST invoice generator for Indian businesses. Automatic CGST/SGST/IGST tax calculation, HSN code formatting, and instant thermal or A4 PDF print. No login required.",
+    "Generate professional, GST-compliant tax invoices online for free. Download PDF invoices, add custom business logos, and print clean A4 bills instantly.",
   alternates: {
     canonical: `${siteConfig.url}/invoice-generator`,
   },
   openGraph: {
-    title: "Free Online GST Invoice Generator | Elvora",
+    title: "Online GST Invoice Generator & PDF Maker | Elvora",
     description:
-      "Generate clean, legally compliant Indian GST tax invoices in seconds. Instant calculation, printable A4 format, zero cost.",
+      "Generate professional, GST-compliant tax invoices online for free. Download PDF invoices, add custom business logos, and print clean A4 bills instantly.",
     url: `${siteConfig.url}/invoice-generator`,
   },
 };
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     q: "Is this GST invoice generator completely free?",
-    a: "Yes. You can generate, customize, and print single invoices without registering an account. To save invoices permanently in cloud ledgers, automate inventory, and track customer dues, you can upgrade to a free 14-day Elvora account.",
+    a: "Yes. You can generate, customize, and print single invoices without registering an account. To save invoices permanently in cloud ledgers, automate inventory, and track customer dues, you can register for an Elvora business account.",
   },
   {
     q: "Does this invoice format comply with Indian GST Council rules?",

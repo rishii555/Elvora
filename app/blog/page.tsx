@@ -9,16 +9,16 @@ import { getBreadcrumbSchema, siteConfig } from "@/lib/seo/config";
 import { BLOG_POSTS } from "@/lib/seo/blog-posts";
 
 export const metadata: Metadata = {
-  title: "Business Guides, GST Compliance & Inventory Tips | Elvora Blog",
+  title: "Business Guides, GST Rules & Retail Insights",
   description:
-    "Actionable, in-depth business management guides for Indian retailers, wholesalers, and accountants. Learn GST tax calculation, thermal POS setup, inventory control, and ledger accounting.",
+    "Practical guides on Indian GST compliance, thermal POS setup, inventory control, and ledger accounting for store owners and accountants.",
   alternates: {
     canonical: `${siteConfig.url}/blog`,
   },
   openGraph: {
-    title: "Elvora Knowledge Base & Business Management Guides",
+    title: "Business Guides, GST Rules & Retail Insights | Elvora",
     description:
-      "Expert insights on Indian GST rules, inventory optimization, barcode billing, and financial ledgers.",
+      "Practical guides on Indian GST compliance, thermal POS setup, inventory control, and ledger accounting for store owners and accountants.",
     url: `${siteConfig.url}/blog`,
   },
 };

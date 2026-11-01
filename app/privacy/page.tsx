@@ -7,7 +7,7 @@ import { PublicFooter } from "@/components/public-footer";
 import { siteConfig } from "@/lib/seo/config";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Elvora Multi-Tenant SaaS",
+  title: "Privacy Policy",
   description:
     "Learn how Elvora collects, processes, and protects business and personal data within our multi-tenant SaaS architecture in compliance with Indian IT and data laws.",
   alternates: {
@@ -78,7 +78,7 @@ export default function PrivacyPolicyPage() {
           <section className="pt-6 space-y-2">
             <h2 className="text-base font-bold text-slate-900">3. Data Retention and Subscription Expiry</h2>
             <p>
-              In the event your commercial subscription or trial expires, <strong>your historical business records remain fully preserved and protected</strong>. You retain full read-only access to view and export historical invoices, customer balances, and tax reports. New billings or product creation can be resumed upon subscription renewal.
+              In the event your commercial subscription expires, <strong>your historical business records remain fully preserved and protected</strong>. You retain full read-only access to view and export historical invoices, customer balances, and tax reports. New billings or product creation can be resumed upon subscription renewal.
             </p>
           </section>
 

@@ -17,16 +17,16 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { getBreadcrumbSchema, getFaqSchema, siteConfig } from "@/lib/seo/config";
 
 export const metadata: Metadata = {
-  title: "GST Billing Software for Indian Businesses | Fast, Compliant & E-Invoice Ready",
+  title: "GST Billing Software for Indian Retail & Wholesale",
   description:
-    "Fast, error-free Indian GST billing software. Automatic CGST/SGST and IGST split, legal decimal round-offs, HSN code verification, thermal & A4 invoice printing, and one-click GSTR-1/3B reports.",
+    "Fast, compliant GST invoicing software. Auto-calculate CGST, SGST & IGST slabs, print thermal receipts, generate tax invoices, and export GSTR-ready reports.",
   alternates: {
     canonical: `${siteConfig.url}/gst-billing-software`,
   },
   openGraph: {
     title: "GST Billing Software for Indian Retail & Wholesale | Elvora",
     description:
-      "Generate compliant GST tax invoices in seconds. Built for Indian merchants with thermal receipt support, HSN code validation, and GSTR export.",
+      "Fast, compliant GST invoicing software. Auto-calculate CGST, SGST & IGST slabs, print thermal receipts, generate tax invoices, and export GSTR-ready reports.",
     url: `${siteConfig.url}/gst-billing-software`,
   },
 };
@@ -94,7 +94,7 @@ export default function GstBillingPage() {
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-6 py-3.5 text-sm sm:text-base font-semibold text-white shadow-sm hover:bg-[#1D4ED8] transition-all"
               >
-                Start Free Trial
+                Get Started Today
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
@@ -249,14 +249,14 @@ export default function GstBillingPage() {
               Ready to Upgrade to Fast, Error-Free GST Billing?
             </h2>
             <p className="text-sm text-slate-600">
-              Join hundreds of growing retail and wholesale businesses across India. Start your 14-day free trial now.
+              Join hundreds of growing retail and wholesale businesses across India. Get started with Elvora today.
             </p>
             <div className="pt-2">
               <Link
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8] transition-all"
               >
-                Create Free Account
+                Register Your Store
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
