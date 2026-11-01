@@ -18,16 +18,16 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { getBreadcrumbSchema, getFaqSchema, siteConfig } from "@/lib/seo/config";
 
 export const metadata: Metadata = {
-  title: "Inventory Management Software for Indian Retail & Wholesale | Elvora",
+  title: "Real-Time Inventory & Stock Management Software",
   description:
-    "Real-time multi-location inventory tracking software. Manage SKU variants (size, finish, color), barcode scanning, automated low-stock alerts, CSV bulk imports, and audit ledgers.",
+    "Track stock levels, product variants, and reorder alerts in real time. Eliminate stockouts, record stock adjustments, and maintain a complete audit ledger.",
   alternates: {
     canonical: `${siteConfig.url}/inventory-management-software`,
   },
   openGraph: {
-    title: "Inventory Management Software for Modern Businesses | Elvora",
+    title: "Real-Time Inventory & Stock Management Software | Elvora",
     description:
-      "Prevent stockouts and dead stock. Real-time SKU variant tracking, godown transfers, and atomic stock deductions for Indian retail and wholesale.",
+      "Track stock levels, product variants, and reorder alerts in real time. Eliminate stockouts, record stock adjustments, and maintain a complete audit ledger.",
     url: `${siteConfig.url}/inventory-management-software`,
   },
 };
@@ -95,7 +95,7 @@ export default function InventorySoftwarePage() {
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-6 py-3.5 text-sm sm:text-base font-semibold text-white shadow-sm hover:bg-[#1D4ED8] transition-all"
               >
-                Start 14-Day Free Trial
+                Get Started Today
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
@@ -257,7 +257,7 @@ export default function InventorySoftwarePage() {
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8] transition-all"
               >
-                Get Started Free
+                Get Started Today
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

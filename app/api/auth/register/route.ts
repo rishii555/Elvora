@@ -5,7 +5,7 @@ import { hashPassword } from "@/lib/auth/passwords";
 import { checkRateLimit } from "@/lib/auth/rate-limiter";
 import { createVerificationToken } from "@/lib/auth/tokens";
 import { sendVerificationEmail } from "@/lib/email/service";
-import { provisionTrialSubscription } from "@/lib/billing/service";
+import { provisionDefaultSubscription } from "@/lib/billing/service";
 
 const registerSchema = z.object({
   // Owner info
@@ -151,8 +151,8 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // 7. Provision Default Subscription Plan for future activation
-      await provisionTrialSubscription(tenant.id, tx);
+      // 7. Provision Default Subscription Plan for future activation (no free trial)
+      await provisionDefaultSubscription(tenant.id, tx);
 
       return { user, tenant };
     });

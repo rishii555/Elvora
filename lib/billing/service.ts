@@ -110,7 +110,70 @@ export async function ensureDefaultPlans(client: any = prisma) {
 }
 
 /**
+ * Provisions a default active commercial subscription for a newly onboarded tenant.
+ * Note: Free trials are NOT currently offered. Newly onboarded tenants receive an active commercial license.
+ */
+export async function provisionDefaultSubscription(tenantId: string, client: any = prisma) {
+  await ensureDefaultPlans(client);
+
+  const defaultPlan =
+    (await client.subscriptionPlan.findUnique({
+      where: { code: "ENTERPRISE" },
+    })) ||
+    (await client.subscriptionPlan.findFirst({
+      where: { isActive: true },
+    }));
+
+  if (!defaultPlan) {
+    throw new Error("Default subscription plan could not be located in database");
+  }
+
+  const now = new Date();
+  const periodEnd = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 1-year active cycle
+
+  // Upsert subscription as ACTIVE with no trial period
+  const sub = await client.subscription.upsert({
+    where: { tenantId },
+    update: {
+      planId: defaultPlan.id,
+      status: "ACTIVE",
+      billingProvider: "ADMIN_APPROVED",
+      currentPeriodStart: now,
+      currentPeriodEnd: periodEnd,
+      trialEndsAt: null,
+    },
+    create: {
+      tenantId,
+      planId: defaultPlan.id,
+      status: "ACTIVE",
+      billingProvider: "ADMIN_APPROVED",
+      currentPeriodStart: now,
+      currentPeriodEnd: periodEnd,
+      trialEndsAt: null,
+    },
+    include: {
+      plan: true,
+    },
+  });
+
+  // Provision usage tracker
+  await client.tenantUsage.upsert({
+    where: { tenantId },
+    update: {},
+    create: {
+      tenantId,
+      monthlyInvoiceCount: 0,
+      lastResetDate: now,
+    },
+  });
+
+  return sub;
+}
+
+/**
  * Provisions a 14-day free trial subscription for a newly onboarded tenant.
+ * @deprecated Free trials are NOT currently offered to new registrants.
+ * Retained for legacy records, test suite fixtures, and future potential re-introduction.
  */
 export async function provisionTrialSubscription(tenantId: string, client: any = prisma) {
   await ensureDefaultPlans(client);
@@ -175,8 +238,8 @@ export async function getTenantSubscription(tenantId: string, client: any = pris
   });
 
   if (!sub) {
-    // Lazily provision trial if not present
-    sub = await provisionTrialSubscription(tenantId, client);
+    // Lazily provision default active subscription if not present (no free trial)
+    sub = await provisionDefaultSubscription(tenantId, client);
   }
 
   const now = new Date();

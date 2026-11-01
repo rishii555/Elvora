@@ -15,21 +15,16 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { getBreadcrumbSchema, siteConfig, getOrganizationSchema } from "@/lib/seo/config";
 
 export const metadata: Metadata = {
-  title: "About Elvora | Simpler Business. Smarter Growth.",
+  title: "About Elvora – Modern Software for Indian Businesses",
   description:
-    "Learn about Elvora's mission to empower small and medium enterprises with unified, high-speed, multi-tenant business management and GST billing software.",
+    "Learn about Elvora's mission: delivering high-speed, mathematically precise billing, inventory, and ledger software tailored for Indian retailers and traders.",
   alternates: {
     canonical: `${siteConfig.url}/about`,
-    languages: {
-      "en-IN": `${siteConfig.url}/about`,
-      "en": `${siteConfig.url}/about`,
-      "x-default": `${siteConfig.url}/about`,
-    },
   },
   openGraph: {
-    title: "About Elvora Technologies | Modern Business SaaS",
+    title: "About Elvora – Modern Software for Indian Businesses | Elvora",
     description:
-      "Our mission: eliminate fragmented business software. Fast counter POS, exact GST compliance, and real-time inventory on a modern cloud stack.",
+      "Learn about Elvora's mission: delivering high-speed, mathematically precise billing, inventory, and ledger software tailored for Indian retailers and traders.",
     url: `${siteConfig.url}/about`,
   },
 };
@@ -183,7 +178,7 @@ export default function AboutPage() {
                 href="/register"
                 className="rounded-lg bg-blue-600 px-6 py-3 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-blue-500 transition"
               >
-                Start Free Trial
+                Get Started Today
               </Link>
               <Link
                 href="/contact"

@@ -1,5 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { 
   Keyboard, 
@@ -18,16 +19,16 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { getBreadcrumbSchema, getFaqSchema, siteConfig } from "@/lib/seo/config";
 
 export const metadata: Metadata = {
-  title: "Fast Retail Counter POS Software for Indian Stores | Elvora",
+  title: "Fast Keyboard-First Counter POS Software",
   description:
-    "High-speed retail counter POS billing software. F2 instant search, barcode scanner integration, split cash & UPI payments, and F8 instant thermal receipt printing.",
+    "High-speed retail POS billing designed for busy checkout desks. Barcode scanning, F2 shortcuts, instant cash/UPI calculations, and 3-inch thermal printing.",
   alternates: {
     canonical: `${siteConfig.url}/pos-software`,
   },
   openGraph: {
-    title: "Keyboard-First Retail Counter POS Software | Elvora",
+    title: "Fast Keyboard-First Counter POS Software | Elvora",
     description:
-      "Engineered for rush hours. Checkout items in 3 seconds using keyboard shortcuts, barcode scanners, and instant thermal printing.",
+      "High-speed retail POS billing designed for busy checkout desks. Barcode scanning, F2 shortcuts, instant cash/UPI calculations, and 3-inch thermal printing.",
     url: `${siteConfig.url}/pos-software`,
   },
 };
@@ -95,7 +96,7 @@ export default function PosSoftwarePage() {
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-6 py-3.5 text-sm sm:text-base font-semibold text-white shadow-sm hover:bg-[#1D4ED8] transition-all"
               >
-                Start 14-Day Free Trial
+                Get Started Today
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
@@ -104,6 +105,18 @@ export default function PosSoftwarePage() {
               >
                 Test Invoice Preview
               </Link>
+            </div>
+
+            {/* POS Interface Preview Screenshot */}
+            <div className="mx-auto mt-12 max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 sm:p-3 shadow-xl shadow-slate-200/50">
+              <Image
+                src="/images/elvora-counter-pos-interface.webp"
+                alt="Elvora Retail Counter POS Interface with Barcode Scanning and Thermal Printing"
+                width={1000}
+                height={650}
+                priority
+                className="w-full rounded-xl object-cover"
+              />
             </div>
           </div>
         </section>
@@ -257,7 +270,7 @@ export default function PosSoftwarePage() {
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#1D4ED8] transition-all"
               >
-                Start 14-Day Free Trial
+                Get Started Today
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

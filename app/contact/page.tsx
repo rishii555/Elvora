@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { 
   Mail, 
-  Phone, 
   MapPin, 
   Clock, 
   MessageSquare, 
@@ -17,21 +16,16 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { getBreadcrumbSchema, siteConfig, getOrganizationSchema } from "@/lib/seo/config";
 
 export const metadata: Metadata = {
-  title: "Contact Elvora | Sales Inquiries & Technical Support",
+  title: "Contact Elvora – Product Inquiries & Support",
   description:
-    "Get in touch with the Elvora team for enterprise sales demos, onboarding assistance, data migration from legacy accounting software, or technical support.",
+    "Connect with the Elvora team for product onboarding, demonstrations, technical support, and account assistance.",
   alternates: {
     canonical: `${siteConfig.url}/contact`,
-    languages: {
-      "en-IN": `${siteConfig.url}/contact`,
-      "en": `${siteConfig.url}/contact`,
-      "x-default": `${siteConfig.url}/contact`,
-    },
   },
   openGraph: {
-    title: "Contact Elvora Sales & Support",
+    title: "Contact Elvora – Product Inquiries & Support | Elvora",
     description:
-      "Reach out to our team for sales demos, billing support, or custom deployment assistance.",
+      "Connect with the Elvora team for product onboarding, demonstrations, technical support, and account assistance.",
     url: `${siteConfig.url}/contact`,
   },
 };
@@ -115,16 +109,6 @@ export default function ContactPage() {
 
                   <div className="flex items-start gap-3">
                     <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                      <Phone className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-[#111827]">Phone & WhatsApp Helpline</p>
-                      <p className="text-slate-600">{siteConfig.contact.phone}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
                       <Clock className="h-4 w-4" />
                     </div>
                     <div>
@@ -138,8 +122,8 @@ export default function ContactPage() {
                       <MapPin className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="font-bold text-[#111827]">Corporate Headquarters</p>
-                      <p className="text-slate-600 leading-relaxed">{siteConfig.contact.address}</p>
+                      <p className="font-bold text-[#111827]">Operating Jurisdiction</p>
+                      <p className="text-slate-600 leading-relaxed">India • Online-First Enterprise Cloud Service</p>
                     </div>
                   </div>
                 </div>

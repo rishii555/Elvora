@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elvora.com";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elvora.qd.je";
 
   return {
     rules: [
@@ -12,12 +12,23 @@ export default function robots(): MetadataRoute.Robots {
           "/gst-billing-software",
           "/inventory-management-software",
           "/pos-software",
+          "/business-management-software",
+          "/online-invoicing-software",
           "/invoice-generator",
+          "/about",
+          "/contact",
           "/pricing",
           "/blog",
           "/blog/*",
           "/privacy",
           "/terms",
+          "/favicon.ico",
+          "/icon.png",
+          "/icon-192.png",
+          "/icon-512.png",
+          "/apple-touch-icon.png",
+          "/og-image.png",
+          "/manifest.webmanifest",
         ],
         disallow: [
           "/dashboard",
@@ -48,6 +59,7 @@ export default function robots(): MetadataRoute.Robots {
           "/api/*",
           "/login",
           "/register",
+          "/pending-approval",
           "/forgot-password",
           "/reset-password",
         ],

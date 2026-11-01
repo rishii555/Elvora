@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   const postUrl = `${siteConfig.url}/blog/${post.slug}`;
 
   return {
-    title: `${post.title} | Elvora Guides`,
+    title: `${post.title} – Business Guide`,
     description: post.metaDescription,
     alternates: {
       canonical: postUrl,
@@ -239,7 +239,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-xs sm:text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-50 transition"
               >
-                Start 14-Day Free Trial <ArrowRight className="h-4 w-4" />
+                Get Started Today <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>

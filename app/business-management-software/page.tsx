@@ -1,5 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { 
   ArrowRight, 
@@ -17,21 +18,16 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { getBreadcrumbSchema, getFaqSchema, siteConfig } from "@/lib/seo/config";
 
 export const metadata: Metadata = {
-  title: "Business Management Software for Growing SMBs | Elvora",
+  title: "All-in-One Business Management Software for SMBs",
   description:
-    "Unified multi-tenant business management software. Connect point-of-sale billing, real-time inventory, customer khata, vendor payables, and double-entry accounting in one intuitive dashboard.",
+    "Unify billing, inventory control, party ledgers, and expense tracking. Eliminate fragmented software and run your entire business from a single dashboard.",
   alternates: {
     canonical: `${siteConfig.url}/business-management-software`,
-    languages: {
-      "en-IN": `${siteConfig.url}/business-management-software`,
-      "en": `${siteConfig.url}/business-management-software`,
-      "x-default": `${siteConfig.url}/business-management-software`,
-    },
   },
   openGraph: {
-    title: "All-in-One Business Management Software | Elvora SaaS",
+    title: "All-in-One Business Management Software for SMBs | Elvora",
     description:
-      "Run your entire commerce operation on a single intelligent platform: counter POS, automated GST tax billing, variant stock ledger, and real-time cashflow analytics.",
+      "Unify billing, inventory control, party ledgers, and expense tracking. Eliminate fragmented software and run your entire business from a single dashboard.",
     url: `${siteConfig.url}/business-management-software`,
   },
 };
@@ -122,7 +118,7 @@ export default function BusinessManagementSoftwarePage() {
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-6 py-3.5 text-sm font-semibold text-white shadow-xs hover:bg-[#1D4ED8] transition-all"
               >
-                Start 14-Day Free Trial
+                Get Started Today
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
@@ -131,6 +127,18 @@ export default function BusinessManagementSoftwarePage() {
               >
                 Sign In to Store
               </Link>
+            </div>
+
+            {/* Business Suite Dashboard Preview Screenshot */}
+            <div className="mx-auto mt-12 max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 sm:p-3 shadow-xl shadow-slate-200/50">
+              <Image
+                src="/images/elvora-financial-dashboard-overview.webp"
+                alt="Elvora Business Management Suite Live Dashboard Overview"
+                width={1000}
+                height={650}
+                priority
+                className="w-full rounded-xl object-cover"
+              />
             </div>
           </div>
         </section>
@@ -256,14 +264,14 @@ export default function BusinessManagementSoftwarePage() {
           <div className="max-w-3xl mx-auto space-y-4">
             <h2 className="text-2xl sm:text-3xl font-extrabold">Ready to Modernize Your Business Operations?</h2>
             <p className="text-sm text-blue-100 max-w-xl mx-auto">
-              Start with our 14-day free trial. No credit card required. Experience fast billing, automated stock audits, and real-time ledger accounting today.
+              Experience fast billing, automated stock audits, and real-time ledger accounting with Elvora today.
             </p>
             <div className="pt-2 flex justify-center gap-4">
               <Link
                 href="/register"
                 className="rounded-lg bg-white px-6 py-3 text-xs sm:text-sm font-bold text-blue-600 shadow-sm hover:bg-slate-100 transition"
               >
-                Start Free Trial Now
+                Get Started Today
               </Link>
               <Link
                 href="/contact"
