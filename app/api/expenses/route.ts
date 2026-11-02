@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import prisma from "@/lib/db/prisma";
+import prisma, { runInTransaction, DatabaseTransactionUnavailableError } from "@/lib/db/prisma";
 import { requireTenantContext, TenantAuthorizationError } from "@/lib/tenant/context";
 import { requirePermission, PermissionDeniedError } from "@/lib/auth/permissions";
 import { getIndianFinancialYear } from "@/lib/finance/decimal";
 import { getNextSequentialNumber } from "@/lib/invoices/service";
 import { postExpenseAccounting } from "@/lib/accounting/service";
+import { publishAutomationEvent } from "@/lib/automation/events";
 
 const CreateExpenseSchema = z.object({
   category: z.string().min(1, "Expense category is required"),
@@ -80,6 +81,9 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: unknown) {
+    if (error instanceof DatabaseTransactionUnavailableError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 503 });
+    }
     if (error instanceof TenantAuthorizationError) {
       return NextResponse.json({ success: false, error: error.message }, { status: 401 });
     }
@@ -102,7 +106,7 @@ export async function POST(req: NextRequest) {
     const expenseDate = parsed.expenseDate ? new Date(parsed.expenseDate) : new Date();
     const fiscalYear = getIndianFinancialYear(expenseDate);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runInTransaction(prisma, async (tx: any) => {
       const expenseNumber = await getNextSequentialNumber(
         context.tenantId,
         "EXPENSE",
@@ -133,6 +137,24 @@ export async function POST(req: NextRequest) {
       return created;
     });
 
+    if (result) {
+      publishAutomationEvent(
+        {
+          tenantId: context.tenantId,
+          eventType: "EXPENSE_CREATED",
+          entityType: "EXPENSE",
+          entityId: result.id,
+          payload: {
+            expenseNumber: result.expenseNumber,
+            category: result.category,
+            payee: result.payee,
+            amount: result.amount,
+          },
+        },
+        prisma
+      ).catch(() => {});
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -150,6 +172,9 @@ export async function POST(req: NextRequest) {
         },
         { status: 400 }
       );
+    }
+    if (error instanceof DatabaseTransactionUnavailableError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 503 });
     }
     if (error instanceof TenantAuthorizationError) {
       return NextResponse.json({ success: false, error: error.message }, { status: 401 });

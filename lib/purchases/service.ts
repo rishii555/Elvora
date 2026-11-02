@@ -11,8 +11,10 @@ import { CrossTenantReferenceError, CrossTenantAccessDeniedError } from "@/lib/t
 import {
   postPurchaseInvoiceAccounting,
   postSupplierPaymentAccounting,
+  postPurchaseReturnAccounting,
 } from "@/lib/accounting/service";
 import { clearTenantDashboardMetricsCache } from "@/lib/dashboard/metrics";
+import { publishAutomationEvent } from "@/lib/automation/events";
 
 export interface CreateSupplierParams {
   tenantId: string;
@@ -185,7 +187,7 @@ export async function createPurchaseInvoice(
     throw new Error("Purchase invoice must contain at least one line item");
   }
 
-  return await runInTransaction(client, async (tx: any) => {
+  const invoice = await runInTransaction(client, async (tx: any) => {
     // 1. Validate Supplier & Tenant
     const [supplier, tenant] = await Promise.all([
       tx.supplier.findFirst({ where: { id: supplierId, tenantId } }),
@@ -229,6 +231,7 @@ export async function createPurchaseInvoice(
       quantity: number;
       purchasePrice: number;
       supplierItemCode?: string;
+      uom?: string;
     }> = [];
 
     for (const it of items) {
@@ -278,6 +281,7 @@ export async function createPurchaseInvoice(
         quantity: it.quantity,
         purchasePrice: it.unitCost,
         supplierItemCode: it.supplierItemCode,
+        uom: variant.product.uom,
       });
     }
 
@@ -404,6 +408,27 @@ export async function createPurchaseInvoice(
     clearTenantDashboardMetricsCache(tenantId);
     return invoice;
   });
+
+  if (invoice) {
+    publishAutomationEvent(
+      {
+        tenantId,
+        eventType: "PURCHASE_CREATED",
+        entityType: "PURCHASE_INVOICE",
+        entityId: invoice.id,
+        payload: {
+          invoiceNumber: invoice.invoiceNumber,
+          supplierId: invoice.supplierId,
+          totalAmount: invoice.totalAmount,
+          balanceAmount: invoice.balanceAmount,
+          status: invoice.status,
+        },
+      },
+      client
+    ).catch(() => {});
+  }
+
+  return invoice;
 }
 
 /**
@@ -652,6 +677,29 @@ export async function createPurchaseReturn(
       where: { id: invoice.supplierId },
       data: { balance: { decrement: grandTotal } },
     });
+
+    // Double-entry accounting for purchase return (debit note)
+    if (tx.ledgerAccount) {
+      const cgstAmt = invoice.isInterState ? 0 : Math.round((taxTotal / 2) * 100) / 100;
+      const sgstAmt = invoice.isInterState ? 0 : Math.round((taxTotal / 2) * 100) / 100;
+      const igstAmt = invoice.isInterState ? taxTotal : 0;
+      const returnTotal = Math.round((subtotal + cgstAmt + sgstAmt + igstAmt) * 100) / 100;
+
+      await postPurchaseReturnAccounting(
+        tenantId,
+        {
+          id: debitNote.id,
+          debitNoteNumber,
+          taxableAmount: subtotal,
+          cgstAmount: cgstAmt,
+          sgstAmount: sgstAmt,
+          igstAmount: igstAmt,
+          totalAmount: returnTotal,
+          createdAt: debitNote.createdAt,
+        },
+        tx
+      );
+    }
 
     return { purchaseReturn, debitNote };
   });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import prisma, { runInTransaction } from "@/lib/db/prisma";
 import { hasPermission, TenantRole } from "@/lib/auth/permissions";
+import { parseAndValidateQuantity } from "@/lib/inventory/precision";
 
 export interface InventoryCsvRow {
   productName: string;
@@ -21,24 +22,36 @@ export interface InventoryCsvRow {
   minStockAlert: number;
 }
 
-export const CsvRowSchema = z.object({
-  productName: z.string().min(1, "Product name is required"),
-  sku: z.string().min(1, "SKU is required"),
-  barcode: z.string().optional(),
-  brand: z.string().default("Generic"),
-  category: z.string().default("General"),
-  model: z.string().optional(),
-  size: z.string().optional(),
-  colorFinish: z.string().optional(),
-  uom: z.enum(["PCS", "SET", "BOX", "MTR", "PAIR", "KG", "LTR", "PKT"]).default("PCS"),
-  hsnCode: z.string().default("0000"),
-  gstRate: z.coerce.number().default(18),
-  purchaseCost: z.coerce.number().min(0).default(0),
-  sellingPrice: z.coerce.number().min(0).default(0),
-  mrp: z.coerce.number().min(0).default(0),
-  openingStock: z.coerce.number().min(0).default(0),
-  minStockAlert: z.coerce.number().min(0).default(5),
-});
+export const CsvRowSchema = z
+  .object({
+    productName: z.string().min(1, "Product name is required"),
+    sku: z.string().min(1, "SKU is required"),
+    barcode: z.string().optional(),
+    brand: z.string().default("Generic"),
+    category: z.string().default("General"),
+    model: z.string().optional(),
+    size: z.string().optional(),
+    colorFinish: z.string().optional(),
+    uom: z.enum(["PCS", "SET", "PAIR", "BOX", "MTR", "KG"]).default("PCS"),
+    hsnCode: z.string().default("0000"),
+    gstRate: z.coerce.number().default(18),
+    purchaseCost: z.coerce.number().min(0).default(0),
+    sellingPrice: z.coerce.number().min(0).default(0),
+    mrp: z.coerce.number().min(0).default(0),
+    openingStock: z.coerce.number().min(0).default(0),
+    minStockAlert: z.coerce.number().min(0).default(5),
+  })
+  .superRefine((data, ctx) => {
+    try {
+      parseAndValidateQuantity(data.openingStock, data.uom, { allowZero: true });
+    } catch (err: any) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["openingStock"],
+        message: err.message,
+      });
+    }
+  });
 
 /**
  * Escapes fields for standard CSV and neutralizes CSV / Formula Injection (CWE-1236).

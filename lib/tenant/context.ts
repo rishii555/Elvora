@@ -57,19 +57,7 @@ export async function requireTenantContext(req: NextRequest): Promise<TenantCont
     throw new TenantAuthorizationError("Invalid or expired session token");
   }
 
-  // Allow instant demo session for testing without requiring local database setup
-  if (session.userId === "demo-admin-id") {
-    return {
-      tenantId: "demo-tenant-id",
-      tenantName: "Universal Enterprises (Demo)",
-      userId: "demo-admin-id",
-      userEmail: "admin@elvora.com",
-      userName: "Elvora Super Admin",
-      role: "OWNER",
-    };
-  }
-
-  // Cache verified membership in short-lived LRU/Map (5 seconds) to avoid repeated round-trips
+  // Cache verified membership in short-lived LRU/Map (60 seconds) to avoid repeated round-trips
   // during simultaneous parallel API requests on a single page load
   const cacheKey = `${session.activeTenantId}:${session.userId}`;
   const now = Date.now();
@@ -93,18 +81,12 @@ export async function requireTenantContext(req: NextRequest): Promise<TenantCont
         user: true,
       },
     });
-  } catch {
-    // If DB has temporary connection latency on localhost, safely use verified signed JWT claims
-    if (session.name && session.email && session.activeTenantId) {
-      return {
-        tenantId: session.activeTenantId,
-        tenantName: "Elvora Workspace",
-        userId: session.userId,
-        userEmail: session.email,
-        userName: session.name,
-        role: session.role || "OWNER",
-      };
-    }
+  } catch (dbErr: any) {
+    // Fail closed: Never return fallback claims when database validation fails
+    tenantContextCache.delete(cacheKey);
+    throw new TenantAuthorizationError(
+      `Database service unavailable: unable to verify tenant membership (${dbErr?.message || "connection error"})`
+    );
   }
 
   if (

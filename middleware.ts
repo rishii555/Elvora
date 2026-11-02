@@ -15,13 +15,50 @@ const PROTECTED_PREFIXES = [
   "/customers",
   "/payments",
   "/expenses",
+  "/accounting",
+  "/analytics",
+  "/automations",
   "/reports",
   "/settings",
   "/setup",
 ];
 
+const CSRF_EXEMPT_PATHS = [
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+  "/api/admin/auth/login",
+  "/api/billing/webhook",
+];
+
+function applySecurityHeaders(res: NextResponse, correlationId?: string): NextResponse {
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  if (correlationId) {
+    res.headers.set("X-Correlation-ID", correlationId);
+    res.headers.set("X-Request-ID", correlationId);
+  }
+  if (process.env.NODE_ENV === "production") {
+    res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  }
+  return res;
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  const correlationId =
+    req.headers.get("x-correlation-id") ||
+    req.headers.get("x-request-id") ||
+    `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+  // Forward correlation ID down the request pipeline
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-correlation-id", correlationId);
+  requestHeaders.set("x-request-id", correlationId);
 
   // 1. Skip Next.js internal static assets
   if (
@@ -46,9 +83,53 @@ export async function middleware(req: NextRequest) {
 
   // 1b. For private API endpoints, inject strict X-Robots-Tag header to prevent indexing
   if (pathname.startsWith("/api")) {
-    const res = NextResponse.next();
+    // CSRF & Cross-Site protection on state-changing API operations
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+      const isExempt = CSRF_EXEMPT_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+      if (!isExempt) {
+        // Reject cross-site requests via Sec-Fetch-Site header
+        const secFetchSite = req.headers.get("sec-fetch-site");
+        if (secFetchSite === "cross-site") {
+          return applySecurityHeaders(
+            NextResponse.json(
+              { success: false, error: "CSRF security check failed: Cross-site request rejected" },
+              { status: 403 }
+            ),
+            correlationId
+          );
+        }
+
+        // Validate Origin header when present
+        const origin = req.headers.get("origin");
+        if (origin) {
+          try {
+            const originHost = new URL(origin).host;
+            const hostHeader = req.headers.get("host") || req.nextUrl.host;
+            if (originHost !== hostHeader) {
+              return applySecurityHeaders(
+                NextResponse.json(
+                  { success: false, error: "CSRF security check failed: Origin mismatch" },
+                  { status: 403 }
+                ),
+                correlationId
+              );
+            }
+          } catch {
+            return applySecurityHeaders(
+              NextResponse.json(
+                { success: false, error: "CSRF security check failed: Malformed Origin" },
+                { status: 403 }
+              ),
+              correlationId
+            );
+          }
+        }
+      }
+    }
+
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
     res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
-    return res;
+    return applySecurityHeaders(res, correlationId);
   }
 
   // 2. Read session cookie
@@ -83,9 +164,9 @@ export async function middleware(req: NextRequest) {
     if (isAuthenticated) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
-    const res = NextResponse.next();
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
     res.headers.set("X-Robots-Tag", "noindex, nofollow");
-    return res;
+    return applySecurityHeaders(res, correlationId);
   }
 
   // 5. Protected dashboard routes:
@@ -102,9 +183,9 @@ export async function middleware(req: NextRequest) {
       loginUrl.searchParams.set("returnUrl", pathname);
       return NextResponse.redirect(loginUrl);
     }
-    const res = NextResponse.next();
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
     res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
-    return res;
+    return applySecurityHeaders(res, correlationId);
   }
 
   // 6. Platform Admin routes
@@ -116,9 +197,9 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(new URL("/admin/dashboard", req.url));
       }
     }
-    const res = NextResponse.next();
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
     res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
-    return res;
+    return applySecurityHeaders(res, correlationId);
   }
 
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
@@ -131,12 +212,12 @@ export async function middleware(req: NextRequest) {
     if (!isAdminAuth) {
       return NextResponse.redirect(new URL("/admin/login", req.url));
     }
-    const res = NextResponse.next();
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
     res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
-    return res;
+    return applySecurityHeaders(res, correlationId);
   }
 
-  return NextResponse.next();
+  return applySecurityHeaders(NextResponse.next({ request: { headers: requestHeaders } }), correlationId);
 }
 
 export const config = {

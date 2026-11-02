@@ -4,6 +4,7 @@ import { requireTenantContext, TenantAuthorizationError } from "@/lib/tenant/con
 import { requirePermission } from "@/lib/auth/permissions";
 import { createSalesInvoice, listSalesInvoices } from "@/lib/invoices/service";
 import { PlanLimitExceededError } from "@/lib/billing/types";
+import { DatabaseTransactionUnavailableError } from "@/lib/db/prisma";
 
 const CreateInvoiceItemSchema = z.object({
   variantId: z.string().min(1, "Variant ID is required"),
@@ -131,6 +132,9 @@ export async function POST(req: NextRequest) {
         },
         { status: 403 }
       );
+    }
+    if (error instanceof DatabaseTransactionUnavailableError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 503 });
     }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ success: false, error: error.errors[0].message }, { status: 400 });

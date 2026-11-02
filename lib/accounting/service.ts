@@ -504,7 +504,15 @@ export async function postExpenseAccounting(
     MAINTENANCE: "5060_ADMIN",
   };
 
-  const accountCode = expenseAccountMapping[expense.category] || "5060_ADMIN";
+  const normalizedCategory = (expense.category || "").toUpperCase();
+  let accountCode = expenseAccountMapping[expense.category];
+  if (!accountCode) {
+    if (normalizedCategory.includes("RENT")) accountCode = "5030_RENT";
+    else if (normalizedCategory.includes("SALAR") || normalizedCategory.includes("WAGE")) accountCode = "5040_SALARIES";
+    else if (normalizedCategory.includes("ELECT") || normalizedCategory.includes("UTIL")) accountCode = "5050_UTILITIES";
+    else if (normalizedCategory.includes("FREIGHT") || normalizedCategory.includes("SHIP")) accountCode = "5020_FREIGHT";
+    else accountCode = "5060_ADMIN";
+  }
   const cashAccountCode = expense.paymentMode === "CASH" ? "1010_CASH" : "1020_BANK";
 
   const lines: JournalLineInput[] = [
@@ -889,5 +897,681 @@ export async function getReconciliationReport(tenantId: string, client: any = pr
         isReconciled: Math.abs(apLedgerBalance - totalSupplierPayables) < 1.0,
       },
     },
+  };
+}
+
+/**
+ * Lists all Chart of Accounts for a tenant with optional filtering.
+ */
+export async function listLedgerAccounts(
+  tenantId: string,
+  params?: { type?: AccountType; search?: string },
+  client: any = prisma
+) {
+  await ensureChartOfAccounts(tenantId, client);
+  const where: any = { tenantId };
+  if (params?.type) where.type = params.type;
+  if (params?.search) {
+    where.OR = [
+      { name: { contains: params.search, mode: "insensitive" } },
+      { code: { contains: params.search, mode: "insensitive" } },
+      { category: { contains: params.search, mode: "insensitive" } },
+    ];
+  }
+  return await client.ledgerAccount.findMany({
+    where,
+    orderBy: [{ type: "asc" }, { code: "asc" }],
+  });
+}
+
+/**
+ * Creates a new custom account in the Chart of Accounts.
+ */
+export async function createLedgerAccount(
+  tenantId: string,
+  data: {
+    code: string;
+    name: string;
+    type: AccountType;
+    category?: string;
+  },
+  client: any = prisma
+) {
+  const code = data.code.trim().toUpperCase();
+  const name = data.name.trim();
+
+  if (!code || code.length < 3) {
+    throw new Error("Account code must be at least 3 characters");
+  }
+  if (!name || name.length < 2) {
+    throw new Error("Account name must be at least 2 characters");
+  }
+
+  const existing = await client.ledgerAccount.findUnique({
+    where: { tenantId_code: { tenantId, code } },
+  });
+  if (existing) {
+    throw new Error(`Account code '${code}' already exists`);
+  }
+
+  return await client.ledgerAccount.create({
+    data: {
+      tenantId,
+      code,
+      name,
+      type: data.type,
+      category: data.category?.trim() || null,
+      isSystem: false,
+      balance: 0,
+    },
+  });
+}
+
+/**
+ * Updates a ledger account's name or category.
+ */
+export async function updateLedgerAccount(
+  tenantId: string,
+  id: string,
+  data: { name?: string; category?: string },
+  client: any = prisma
+) {
+  const account = await client.ledgerAccount.findFirst({
+    where: { id, tenantId },
+  });
+  if (!account) {
+    throw new CrossTenantAccessDeniedError("Account not found");
+  }
+
+  return await client.ledgerAccount.update({
+    where: { id },
+    data: {
+      ...(data.name?.trim() ? { name: data.name.trim() } : {}),
+      ...(data.category !== undefined ? { category: data.category?.trim() || null } : {}),
+    },
+  });
+}
+
+/**
+ * Deletes a custom ledger account safely with strict integrity checks.
+ */
+export async function deleteLedgerAccount(
+  tenantId: string,
+  id: string,
+  client: any = prisma
+) {
+  const account = await client.ledgerAccount.findFirst({
+    where: { id, tenantId },
+  });
+  if (!account) {
+    throw new CrossTenantAccessDeniedError("Account not found");
+  }
+  if (account.isSystem) {
+    throw new Error("System accounts cannot be deleted");
+  }
+  if (Math.abs(account.balance) > 0.001) {
+    throw new Error("Cannot delete account with a non-zero balance");
+  }
+
+  const [entriesCount, linesCount] = await Promise.all([
+    client.ledgerEntry.count({ where: { accountId: id, tenantId } }),
+    client.journalLine.count({ where: { accountId: id, tenantId } }),
+  ]);
+
+  if (entriesCount > 0 || linesCount > 0) {
+    throw new Error("Cannot delete account that has recorded journal transactions. Deactivate or rename instead.");
+  }
+
+  return await client.ledgerAccount.delete({
+    where: { id },
+  });
+}
+
+/**
+ * Lists journal entries with optional date, type, and pagination filters.
+ */
+export async function listJournalEntries(
+  tenantId: string,
+  params?: {
+    startDate?: Date;
+    endDate?: Date;
+    referenceType?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  },
+  client: any = prisma
+) {
+  const { startDate, endDate, referenceType, search, page = 1, limit = 50 } = params || {};
+  const where: any = { tenantId };
+
+  if (startDate || endDate) {
+    where.entryDate = {};
+    if (startDate) where.entryDate.gte = startDate;
+    if (endDate) where.entryDate.lte = endDate;
+  }
+  if (referenceType && referenceType !== "ALL") {
+    where.referenceType = referenceType;
+  }
+  if (search) {
+    where.OR = [
+      { entryNumber: { contains: search, mode: "insensitive" } },
+      { narration: { contains: search, mode: "insensitive" } },
+      { referenceId: { contains: search, mode: "insensitive" } },
+    ];
+  }
+
+  const [total, items] = await Promise.all([
+    client.journalEntry.count({ where }),
+    client.journalEntry.findMany({
+      where,
+      include: {
+        lines: {
+          include: { account: true },
+        },
+      },
+      orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+  ]);
+
+  return {
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    items,
+  };
+}
+
+/**
+ * Creates a manual journal voucher.
+ */
+export async function createManualJournalEntry(
+  tenantId: string,
+  params: {
+    entryDate?: Date;
+    narration: string;
+    referenceId?: string;
+    lines: JournalLineInput[];
+  },
+  client: any = prisma
+) {
+  if (!params.narration || params.narration.trim().length === 0) {
+    throw new Error("Narration is required for manual journal entries");
+  }
+  return await postJournalEntry(
+    {
+      tenantId,
+      entryDate: params.entryDate || new Date(),
+      narration: params.narration.trim(),
+      referenceType: "MANUAL",
+      referenceId: params.referenceId?.trim() || undefined,
+      lines: params.lines,
+    },
+    client
+  );
+}
+
+/**
+ * Reverses an existing journal voucher with a fully balanced contra reversal.
+ */
+export async function reverseJournalEntry(
+  tenantId: string,
+  journalId: string,
+  reversalDate: Date = new Date(),
+  reason?: string,
+  client: any = prisma
+) {
+  const journal = await client.journalEntry.findFirst({
+    where: { id: journalId, tenantId },
+    include: {
+      lines: {
+        include: { account: true },
+      },
+    },
+  });
+
+  if (!journal) {
+    throw new CrossTenantAccessDeniedError("Journal entry not found");
+  }
+
+  if (journal.referenceType === "REVERSAL") {
+    throw new Error("Cannot reverse an existing reversal entry");
+  }
+
+  const existingReversal = await client.journalEntry.findFirst({
+    where: {
+      tenantId,
+      referenceType: "REVERSAL",
+      referenceId: journal.id,
+    },
+  });
+
+  if (existingReversal) {
+    throw new Error(`This journal entry has already been reversed by voucher #${existingReversal.entryNumber}`);
+  }
+
+  const reversingLines: JournalLineInput[] = journal.lines.map((l: any) => ({
+    accountCode: l.account.code,
+    debit: l.credit,
+    credit: l.debit,
+    description: `Reversal: ${l.description || journal.narration}`,
+  }));
+
+  const reversalNarration = `Reversal of ${journal.entryNumber}${reason ? `: ${reason}` : ` (${journal.narration})`}`;
+
+  return await postJournalEntry(
+    {
+      tenantId,
+      entryDate: reversalDate,
+      narration: reversalNarration,
+      referenceType: "REVERSAL",
+      referenceId: journal.id,
+      lines: reversingLines,
+    },
+    client
+  );
+}
+
+/**
+ * Records a Contra voucher for cash-bank or bank-bank transfers.
+ */
+export async function postCashBankTransfer(
+  tenantId: string,
+  params: {
+    fromAccountCode: string;
+    toAccountCode: string;
+    amount: number;
+    date?: Date;
+    narration?: string;
+    referenceNumber?: string;
+  },
+  client: any = prisma
+) {
+  const { fromAccountCode, toAccountCode, amount, date = new Date(), narration, referenceNumber } = params;
+
+  if (amount <= 0) {
+    throw new Error("Transfer amount must be strictly greater than zero");
+  }
+  if (fromAccountCode === toAccountCode) {
+    throw new Error("Source and destination accounts must be different");
+  }
+
+  await ensureChartOfAccounts(tenantId, client);
+
+  const [fromAcc, toAcc] = await Promise.all([
+    client.ledgerAccount.findFirst({ where: { tenantId, code: fromAccountCode } }),
+    client.ledgerAccount.findFirst({ where: { tenantId, code: toAccountCode } }),
+  ]);
+
+  if (!fromAcc) throw new Error(`Source account '${fromAccountCode}' not found`);
+  if (!toAcc) throw new Error(`Destination account '${toAccountCode}' not found`);
+
+  const desc = narration?.trim() || `Contra transfer from ${fromAcc.name} to ${toAcc.name}`;
+
+  return await postJournalEntry(
+    {
+      tenantId,
+      entryDate: date,
+      narration: `Contra Transfer: ₹${amount.toFixed(2)} [${fromAcc.code} -> ${toAcc.code}] - ${desc}`,
+      referenceType: "CONTRA",
+      referenceId: referenceNumber?.trim() || undefined,
+      lines: [
+        {
+          accountCode: toAccountCode,
+          debit: amount,
+          credit: 0,
+          description: `Deposit to ${toAcc.name}`,
+        },
+        {
+          accountCode: fromAccountCode,
+          debit: 0,
+          credit: amount,
+          description: `Withdrawal from ${fromAcc.name}`,
+        },
+      ],
+    },
+    client
+  );
+}
+
+/**
+ * Generates the Profit & Loss Statement (Income Statement) for a date range.
+ */
+export async function getProfitAndLossStatement(
+  tenantId: string,
+  params?: { startDate?: Date; endDate?: Date },
+  client: any = prisma
+) {
+  await ensureChartOfAccounts(tenantId, client);
+
+  const now = new Date();
+  const fiscalYear = getIndianFinancialYear(now);
+  const startYear = parseInt(fiscalYear.split("-")[0], 10);
+  const defaultStart = new Date(startYear, 3, 1, 0, 0, 0, 0); // April 1
+  const startDate = params?.startDate || defaultStart;
+  const endDate = params?.endDate || now;
+
+  const accounts = await client.ledgerAccount.findMany({
+    where: {
+      tenantId,
+      type: { in: ["REVENUE", "EXPENSE"] },
+    },
+    include: {
+      journalLines: {
+        where: {
+          journal: {
+            entryDate: { gte: startDate, lte: endDate },
+          },
+        },
+      },
+    },
+    orderBy: { code: "asc" },
+  });
+
+  const revenueAccounts: any[] = [];
+  const cogsAccounts: any[] = [];
+  const expenseAccounts: any[] = [];
+
+  let totalOperatingRevenue = new Decimal(0);
+  let totalOtherIncome = new Decimal(0);
+  let totalCOGS = new Decimal(0);
+  let totalOperatingExpenses = new Decimal(0);
+  let totalOtherExpenses = new Decimal(0);
+
+  accounts.forEach((acc: any) => {
+    let dr = new Decimal(0);
+    let cr = new Decimal(0);
+    acc.journalLines.forEach((jl: any) => {
+      dr = dr.plus(jl.debit);
+      cr = cr.plus(jl.credit);
+    });
+
+    if (acc.type === "REVENUE") {
+      const net = cr.minus(dr).toNumber();
+      const isOther = acc.code === "4030_DISCOUNTS_RECEIVED" || acc.category?.toLowerCase().includes("other");
+      if (isOther) {
+        totalOtherIncome = totalOtherIncome.plus(net);
+      } else {
+        totalOperatingRevenue = totalOperatingRevenue.plus(net);
+      }
+      revenueAccounts.push({
+        id: acc.id,
+        code: acc.code,
+        name: acc.name,
+        category: acc.category || "Operating Revenue",
+        isOther,
+        amount: net,
+      });
+    } else {
+      // EXPENSE
+      const net = dr.minus(cr).toNumber();
+      const isCOGS = acc.code === "5010_COGS" || acc.category?.toLowerCase().includes("direct");
+      const isOther = acc.code === "5090_ROUND_OFF" || acc.category?.toLowerCase().includes("other");
+
+      if (isCOGS) {
+        totalCOGS = totalCOGS.plus(net);
+        cogsAccounts.push({
+          id: acc.id,
+          code: acc.code,
+          name: acc.name,
+          category: acc.category || "Direct Expenses",
+          amount: net,
+        });
+      } else {
+        if (isOther) {
+          totalOtherExpenses = totalOtherExpenses.plus(net);
+        } else {
+          totalOperatingExpenses = totalOperatingExpenses.plus(net);
+        }
+        expenseAccounts.push({
+          id: acc.id,
+          code: acc.code,
+          name: acc.name,
+          category: acc.category || "Operating Expenses",
+          isOther,
+          amount: net,
+        });
+      }
+    }
+  });
+
+  const totalRevenue = totalOperatingRevenue.plus(totalOtherIncome);
+  const grossProfit = totalRevenue.minus(totalCOGS);
+  const totalAllExpenses = totalCOGS.plus(totalOperatingExpenses).plus(totalOtherExpenses);
+  const netProfit = totalRevenue.minus(totalAllExpenses);
+  const operatingProfit = grossProfit.minus(totalOperatingExpenses);
+
+  const grossMargin = totalRevenue.greaterThan(0)
+    ? grossProfit.dividedBy(totalRevenue).times(100).toDecimalPlaces(2).toNumber()
+    : 0;
+  const netMargin = totalRevenue.greaterThan(0)
+    ? netProfit.dividedBy(totalRevenue).times(100).toDecimalPlaces(2).toNumber()
+    : 0;
+
+  return {
+    period: { startDate, endDate },
+    revenue: {
+      operatingRevenue: totalOperatingRevenue.toNumber(),
+      otherIncome: totalOtherIncome.toNumber(),
+      totalRevenue: totalRevenue.toNumber(),
+      accounts: revenueAccounts,
+    },
+    costOfGoodsSold: {
+      totalCOGS: totalCOGS.toNumber(),
+      accounts: cogsAccounts,
+    },
+    grossProfit: grossProfit.toNumber(),
+    grossMarginPercent: grossMargin,
+    operatingExpenses: {
+      totalOperatingExpenses: totalOperatingExpenses.toNumber(),
+      otherExpenses: totalOtherExpenses.toNumber(),
+      totalExpenses: totalOperatingExpenses.plus(totalOtherExpenses).toNumber(),
+      accounts: expenseAccounts,
+    },
+    operatingProfit: operatingProfit.toNumber(),
+    totalExpenses: totalAllExpenses.toNumber(),
+    netProfit: netProfit.toNumber(),
+    netMarginPercent: netMargin,
+  };
+}
+
+/**
+ * Generates the Balance Sheet report as of a specific date.
+ */
+export async function getBalanceSheet(
+  tenantId: string,
+  asOfDate: Date = new Date(),
+  client: any = prisma
+) {
+  await ensureChartOfAccounts(tenantId, client);
+
+  const accounts = await client.ledgerAccount.findMany({
+    where: { tenantId },
+    include: {
+      journalLines: {
+        where: {
+          journal: {
+            entryDate: { lte: asOfDate },
+          },
+        },
+      },
+    },
+    orderBy: { code: "asc" },
+  });
+
+  const assetAccounts: any[] = [];
+  const liabilityAccounts: any[] = [];
+  const equityAccounts: any[] = [];
+
+  let totalAssets = new Decimal(0);
+  let totalLiabilities = new Decimal(0);
+  let totalEquityAccounts = new Decimal(0);
+
+  let cumulativeRevenue = new Decimal(0);
+  let cumulativeExpenses = new Decimal(0);
+
+  accounts.forEach((acc: any) => {
+    let dr = new Decimal(0);
+    let cr = new Decimal(0);
+    acc.journalLines.forEach((jl: any) => {
+      dr = dr.plus(jl.debit);
+      cr = cr.plus(jl.credit);
+    });
+
+    if (acc.type === "ASSET") {
+      const net = dr.minus(cr).toNumber();
+      totalAssets = totalAssets.plus(net);
+      assetAccounts.push({
+        id: acc.id,
+        code: acc.code,
+        name: acc.name,
+        category: acc.category || "Current Assets",
+        amount: net,
+      });
+    } else if (acc.type === "LIABILITY") {
+      const net = cr.minus(dr).toNumber();
+      totalLiabilities = totalLiabilities.plus(net);
+      liabilityAccounts.push({
+        id: acc.id,
+        code: acc.code,
+        name: acc.name,
+        category: acc.category || "Current Liabilities",
+        amount: net,
+      });
+    } else if (acc.type === "EQUITY") {
+      const net = cr.minus(dr).toNumber();
+      totalEquityAccounts = totalEquityAccounts.plus(net);
+      equityAccounts.push({
+        id: acc.id,
+        code: acc.code,
+        name: acc.name,
+        category: acc.category || "Owner's Equity",
+        amount: net,
+      });
+    } else if (acc.type === "REVENUE") {
+      cumulativeRevenue = cumulativeRevenue.plus(cr.minus(dr));
+    } else if (acc.type === "EXPENSE") {
+      cumulativeExpenses = cumulativeExpenses.plus(dr.minus(cr));
+    }
+  });
+
+  // Current earnings = Cumulative Revenue - Cumulative Expenses
+  const currentEarnings = cumulativeRevenue.minus(cumulativeExpenses);
+  const totalEquity = totalEquityAccounts.plus(currentEarnings);
+  const totalLiabilitiesAndEquity = totalLiabilities.plus(totalEquity);
+
+  const difference = totalAssets.minus(totalLiabilitiesAndEquity).abs().toNumber();
+  const isBalanced = difference < 0.05;
+
+  return {
+    asOfDate,
+    assets: {
+      total: totalAssets.toNumber(),
+      accounts: assetAccounts,
+    },
+    liabilities: {
+      total: totalLiabilities.toNumber(),
+      accounts: liabilityAccounts,
+    },
+    equity: {
+      equityAccountsTotal: totalEquityAccounts.toNumber(),
+      currentEarnings: currentEarnings.toNumber(),
+      total: totalEquity.toNumber(),
+      accounts: equityAccounts,
+    },
+    totalLiabilitiesAndEquity: totalLiabilitiesAndEquity.toNumber(),
+    difference,
+    isBalanced,
+  };
+}
+
+/**
+ * Generates the Cash & Bank Book statement.
+ */
+export async function getCashAndBankBook(
+  tenantId: string,
+  params?: { startDate?: Date; endDate?: Date },
+  client: any = prisma
+) {
+  await ensureChartOfAccounts(tenantId, client);
+  const now = new Date();
+  const startDate = params?.startDate || new Date(now.getFullYear(), now.getMonth(), 1);
+  const endDate = params?.endDate || now;
+
+  const accounts = await client.ledgerAccount.findMany({
+    where: {
+      tenantId,
+      OR: [
+        { code: { in: ["1010_CASH", "1020_BANK"] } },
+        { category: "Cash & Cash Equivalents" },
+      ],
+    },
+    include: {
+      entries: {
+        where: {
+          entryDate: { lte: endDate },
+        },
+        orderBy: { entryDate: "asc" },
+      },
+    },
+  });
+
+  const accountSummaries = accounts.map((acc: any) => {
+    let opening = new Decimal(0);
+    let periodDebits = new Decimal(0);
+    let periodCredits = new Decimal(0);
+    const periodTransactions: any[] = [];
+
+    acc.entries.forEach((e: any) => {
+      const eDate = new Date(e.entryDate);
+      if (eDate < startDate) {
+        opening = opening.plus(e.debit).minus(e.credit);
+      } else {
+        periodDebits = periodDebits.plus(e.debit);
+        periodCredits = periodCredits.plus(e.credit);
+        periodTransactions.push({
+          id: e.id,
+          entryDate: e.entryDate,
+          description: e.description,
+          debit: e.debit,
+          credit: e.credit,
+          referenceType: e.referenceType,
+          referenceId: e.referenceId,
+        });
+      }
+    });
+
+    const closing = opening.plus(periodDebits).minus(periodCredits);
+
+    return {
+      id: acc.id,
+      code: acc.code,
+      name: acc.name,
+      category: acc.category,
+      openingBalance: opening.toNumber(),
+      totalReceipts: periodDebits.toNumber(),
+      totalPayments: periodCredits.toNumber(),
+      closingBalance: closing.toNumber(),
+      transactions: periodTransactions,
+    };
+  });
+
+  const totalCashOnHand = accountSummaries
+    .filter((a: any) => a.code.includes("CASH"))
+    .reduce((s: number, a: any) => s + a.closingBalance, 0);
+
+  const totalBankBalance = accountSummaries
+    .filter((a: any) => a.code.includes("BANK"))
+    .reduce((s: number, a: any) => s + a.closingBalance, 0);
+
+  return {
+    period: { startDate, endDate },
+    totalCashOnHand,
+    totalBankBalance,
+    totalLiquidFunds: totalCashOnHand + totalBankBalance,
+    accounts: accountSummaries,
   };
 }

@@ -44,13 +44,13 @@ export function PublicHeader({ activeNav }: PublicHeaderProps) {
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/login"
-            className="rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-[#111827] hover:bg-slate-100 transition-colors"
+            className="inline-flex min-h-[40px] items-center rounded-lg px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-[#111827] hover:bg-slate-100 transition-colors"
           >
             Sign In
           </Link>
           <Link
             href="/register"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#2563EB] px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-[#1D4ED8] active:bg-blue-800 transition-all"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-[#2563EB] px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-[#1D4ED8] active:bg-blue-800 transition-all"
           >
             Get Started Free
             <ArrowRight className="h-4 w-4" />

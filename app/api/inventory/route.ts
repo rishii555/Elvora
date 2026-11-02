@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import prisma from "@/lib/db/prisma";
+import prisma, { runInTransaction, DatabaseTransactionUnavailableError } from "@/lib/db/prisma";
 import { requireTenantContext, TenantAuthorizationError } from "@/lib/tenant/context";
 import { requirePermission, hasPermission } from "@/lib/auth/permissions";
 import { checkPlanLimit } from "@/lib/billing/service";
@@ -9,6 +9,23 @@ import {
   listInventoryItems,
   calculateInventoryValuation,
 } from "@/lib/inventory/service";
+import { CustomAttributesSchema } from "@/lib/inventory/validation";
+import { parseAndValidateQuantity } from "@/lib/inventory/precision";
+
+const CreateProductVariantInputSchema = z.object({
+  name: z.string().optional(),
+  sku: z.string().min(1, "Variant SKU is required"),
+  barcode: z.string().optional(),
+  model: z.string().optional(),
+  size: z.string().optional(),
+  colorFinish: z.string().optional(),
+  purchasePrice: z.coerce.number().min(0).default(0),
+  sellingPrice: z.coerce.number().min(0).default(0),
+  mrp: z.coerce.number().min(0).default(0),
+  gstRate: z.coerce.number().default(18),
+  openingStock: z.coerce.number().min(0).default(0),
+  customAttributes: CustomAttributesSchema.optional(),
+});
 
 const CreateProductSchema = z.object({
   name: z.string().min(1, "Product name is required"),
@@ -19,7 +36,7 @@ const CreateProductSchema = z.object({
   model: z.string().optional(),
   size: z.string().optional(),
   colorFinish: z.string().optional(),
-  uom: z.enum(["PCS", "SET", "BOX", "MTR", "PAIR", "KG", "LTR", "PKT"]).default("PCS"),
+  uom: z.enum(["PCS", "SET", "PAIR", "BOX", "MTR", "KG"]).default("PCS"),
   hsnCode: z.string().default("0000"),
   gstRate: z.coerce.number().default(18),
   purchasePrice: z.coerce.number().min(0).default(0),
@@ -28,6 +45,31 @@ const CreateProductSchema = z.object({
   openingStock: z.coerce.number().min(0).default(0),
   minStockAlert: z.coerce.number().min(0).default(5),
   description: z.string().optional(),
+  customAttributes: CustomAttributesSchema.optional(),
+  variants: z.array(CreateProductVariantInputSchema).optional(),
+}).superRefine((data, ctx) => {
+  try {
+    parseAndValidateQuantity(data.openingStock, data.uom, { allowZero: true });
+  } catch (err: any) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["openingStock"],
+      message: err.message,
+    });
+  }
+  if (data.variants && data.variants.length > 0) {
+    data.variants.forEach((v, index) => {
+      try {
+        parseAndValidateQuantity(v.openingStock, data.uom, { allowZero: true });
+      } catch (err: any) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["variants", index, "openingStock"],
+          message: err.message,
+        });
+      }
+    });
+  }
 });
 
 export async function GET(req: NextRequest) {
@@ -42,6 +84,7 @@ export async function GET(req: NextRequest) {
     const colorFinish = searchParams.get("colorFinish") || undefined;
     const size = searchParams.get("size") || undefined;
     const stockStatus = (searchParams.get("stockStatus") || "ALL") as any;
+    const locationId = searchParams.get("locationId") || undefined;
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
 
@@ -56,6 +99,7 @@ export async function GET(req: NextRequest) {
         colorFinish,
         size,
         stockStatus,
+        locationId,
         page,
         limit,
       }),
@@ -98,7 +142,7 @@ export async function POST(req: NextRequest) {
       effectiveCost = 0;
     }
 
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await runInTransaction(prisma, async (tx: any) => {
       // 1. Resolve or create Brand
       let brand = await tx.brand.findFirst({
         where: { tenantId: context.tenantId, name: validated.brand },
@@ -119,12 +163,22 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // 3. Check SKU duplicate within tenant
+      // 3. Check SKU duplicate within tenant (for primary SKU and any explicit variants)
+      const skusToCheck = [validated.sku];
+      if (validated.variants && validated.variants.length > 0) {
+        validated.variants.forEach((v) => {
+          if (!skusToCheck.includes(v.sku)) skusToCheck.push(v.sku);
+        });
+      }
+
       const existingSku = await tx.productVariant.findFirst({
-        where: { tenantId: context.tenantId, sku: validated.sku },
+        where: {
+          tenantId: context.tenantId,
+          sku: { in: skusToCheck },
+        },
       });
       if (existingSku) {
-        throw new Error(`SKU '${validated.sku}' already exists in your inventory`);
+        throw new Error(`SKU '${existingSku.sku}' already exists in your inventory`);
       }
 
       // 4. Create Product
@@ -143,43 +197,136 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // 5. Create Product Variant
-      const variant = await tx.productVariant.create({
-        data: {
-          tenantId: context.tenantId,
-          productId: product.id,
-          name: validated.model ? `${validated.name} - ${validated.model}` : "Standard",
-          sku: validated.sku,
-          barcode: validated.barcode || null,
-          model: validated.model || null,
-          size: validated.size || null,
-          colorFinish: validated.colorFinish || null,
-          purchasePrice: effectiveCost,
-          sellingPrice: validated.sellingPrice,
-          mrp: validated.mrp,
-          gstRate: validated.gstRate,
-          currentStock: validated.openingStock,
-        },
-      });
-
-      // 6. Record opening stock movement if stock > 0
-      if (validated.openingStock > 0) {
-        await tx.stockMovement.create({
-          data: {
-            tenantId: context.tenantId,
-            variantId: variant.id,
-            type: "ADJUSTMENT_IN",
-            quantity: validated.openingStock,
-            unitCost: effectiveCost,
-            balanceAfter: validated.openingStock,
-            referenceType: "INITIAL_SETUP",
-            reason: "OPENING_STOCK",
-            notes: "Opening balance recorded on item creation",
-          },
+      // 5. Resolve default location for initial stock tracking
+      let defaultLocId: string | null = null;
+      if (tx.inventoryLocation && typeof tx.inventoryLocation.findFirst === "function") {
+        const dLoc = await tx.inventoryLocation.findFirst({
+          where: { tenantId: context.tenantId, isDefault: true, isActive: true },
+          select: { id: true },
         });
+        defaultLocId = dLoc?.id ?? null;
       }
 
-      return { product, variant };
+      // 6. Create Variants
+      const createdVariants: any[] = [];
+
+      if (validated.variants && validated.variants.length > 0) {
+        for (const v of validated.variants) {
+          let varCost = v.purchasePrice;
+          if (!hasPermission(context.role, "VIEW_PURCHASE_COSTS")) {
+            varCost = 0;
+          }
+
+          const variantName =
+            v.name ||
+            [validated.name, v.model, v.colorFinish, v.size].filter(Boolean).join(" - ") ||
+            "Standard";
+
+          const variant = await tx.productVariant.create({
+            data: {
+              tenantId: context.tenantId,
+              productId: product.id,
+              name: variantName,
+              sku: v.sku,
+              barcode: v.barcode || null,
+              model: v.model || null,
+              size: v.size || null,
+              colorFinish: v.colorFinish || null,
+              customAttributes: v.customAttributes ? (v.customAttributes as any) : undefined,
+              purchasePrice: varCost,
+              sellingPrice: v.sellingPrice,
+              mrp: v.mrp,
+              gstRate: v.gstRate,
+              currentStock: v.openingStock,
+            },
+          });
+
+          if (v.openingStock > 0) {
+            if (defaultLocId && tx.locationStock && typeof tx.locationStock.create === "function") {
+              await tx.locationStock.create({
+                data: {
+                  tenantId: context.tenantId,
+                  locationId: defaultLocId,
+                  variantId: variant.id,
+                  stock: v.openingStock,
+                },
+              });
+            }
+
+            await tx.stockMovement.create({
+              data: {
+                tenantId: context.tenantId,
+                locationId: defaultLocId,
+                variantId: variant.id,
+                type: "ADJUSTMENT_IN",
+                quantity: v.openingStock,
+                unitCost: varCost,
+                balanceAfter: v.openingStock,
+                referenceType: "INITIAL_SETUP",
+                reason: "OPENING_STOCK",
+                notes: "Opening balance recorded on item creation",
+              },
+            });
+          }
+
+          createdVariants.push(variant);
+        }
+      } else {
+        const variant = await tx.productVariant.create({
+          data: {
+            tenantId: context.tenantId,
+            productId: product.id,
+            name: validated.model ? `${validated.name} - ${validated.model}` : "Standard",
+            sku: validated.sku,
+            barcode: validated.barcode || null,
+            model: validated.model || null,
+            size: validated.size || null,
+            colorFinish: validated.colorFinish || null,
+            customAttributes: validated.customAttributes ? (validated.customAttributes as any) : undefined,
+            purchasePrice: effectiveCost,
+            sellingPrice: validated.sellingPrice,
+            mrp: validated.mrp,
+            gstRate: validated.gstRate,
+            currentStock: validated.openingStock,
+          },
+        });
+
+        if (validated.openingStock > 0) {
+          if (defaultLocId && tx.locationStock && typeof tx.locationStock.create === "function") {
+            await tx.locationStock.create({
+              data: {
+                tenantId: context.tenantId,
+                locationId: defaultLocId,
+                variantId: variant.id,
+                stock: validated.openingStock,
+              },
+            });
+          }
+
+          await tx.stockMovement.create({
+            data: {
+              tenantId: context.tenantId,
+              locationId: defaultLocId,
+              variantId: variant.id,
+              type: "ADJUSTMENT_IN",
+              quantity: validated.openingStock,
+              unitCost: effectiveCost,
+              balanceAfter: validated.openingStock,
+              referenceType: "INITIAL_SETUP",
+              reason: "OPENING_STOCK",
+              notes: "Opening balance recorded on item creation",
+            },
+          });
+        }
+
+        createdVariants.push(variant);
+      }
+
+      return {
+        product,
+        variant: createdVariants[0],
+        variants: createdVariants,
+      };
     });
 
     return NextResponse.json({
@@ -203,6 +350,9 @@ export async function POST(req: NextRequest) {
         },
         { status: 403 }
       );
+    }
+    if (error instanceof DatabaseTransactionUnavailableError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 503 });
     }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ success: false, error: error.errors[0].message }, { status: 400 });

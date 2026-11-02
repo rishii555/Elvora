@@ -4,6 +4,7 @@ import { requireTenantContext, TenantAuthorizationError } from "@/lib/tenant/con
 import { requirePermission, PermissionDeniedError } from "@/lib/auth/permissions";
 import { recordCustomerPayment } from "@/lib/invoices/service";
 import { CrossTenantAccessDeniedError } from "@/lib/tenant/isolation";
+import { DatabaseTransactionUnavailableError } from "@/lib/db/prisma";
 
 const CustomerPaymentSchema = z.object({
   amount: z.coerce.number().positive("Payment amount must be greater than zero"),
@@ -49,6 +50,9 @@ export async function POST(
     }
     if (error instanceof CrossTenantAccessDeniedError) {
       return NextResponse.json({ success: false, error: error.message }, { status: 404 });
+    }
+    if (error instanceof DatabaseTransactionUnavailableError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 503 });
     }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ success: false, error: error.errors[0].message }, { status: 400 });

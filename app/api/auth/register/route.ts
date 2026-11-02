@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/db/prisma";
+import { prisma, runInTransaction, DatabaseTransactionUnavailableError } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/passwords";
 import { checkRateLimit } from "@/lib/auth/rate-limiter";
 import { createVerificationToken } from "@/lib/auth/tokens";
 import { sendVerificationEmail } from "@/lib/email/service";
 import { provisionDefaultSubscription } from "@/lib/billing/service";
+import { provisionTenantTemplate } from "@/lib/templates/service";
 
 const registerSchema = z.object({
   // Owner info
@@ -16,6 +17,8 @@ const registerSchema = z.object({
   // Shop / Tenant info
   tradeName: z.string().min(2, "Shop/Trade name is required"),
   legalName: z.string().optional(),
+  businessSector: z.string().optional(),
+  businessType: z.string().optional(),
   gstin: z.string().optional(),
   stateCode: z.string().length(2, "State code must be 2 digits (e.g. 09 for UP, 07 for DL)"),
   address: z.string().optional(),
@@ -55,7 +58,7 @@ export async function POST(req: NextRequest) {
     const passwordHash = await hashPassword(validated.password);
 
     // Execute atomic creation of User, Tenant, Membership, and Default Seeds in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runInTransaction(prisma, async (tx: any) => {
       // 1. Create the User with PENDING approval status
       const user = await tx.user.create({
         data: {
@@ -116,24 +119,13 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // 5. Seed Universal Business Default Categories
-      const defaultCategories = [
-        "General Products & Goods",
-        "Office Equipment & Electronics",
-        "Packaging & Supplies",
-        "Tools & Hardware",
-        "Professional Services & Consulting",
-        "Maintenance & Repairs",
-      ];
-
-      for (const catName of defaultCategories) {
-        await tx.category.create({
-          data: {
-            tenantId: tenant.id,
-            name: catName,
-          },
-        });
-      }
+      // 5. Provision Industry Template & Configuration (Phase 2 & Phase 3)
+      const chosenSector = validated.businessSector || validated.businessType || "fmcg";
+      await provisionTenantTemplate({
+        tenantId: tenant.id,
+        businessType: chosenSector,
+        db: tx,
+      });
 
       // 6. Record Audit Log for Pending Registration
       await tx.auditLog.create({
@@ -174,6 +166,9 @@ export async function POST(req: NextRequest) {
       tenantId: result.tenant.id,
     });
   } catch (error: unknown) {
+    if (error instanceof DatabaseTransactionUnavailableError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors[0]?.message || "Validation failed" }, { status: 400 });
     }

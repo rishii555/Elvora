@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { hashPassword, verifyPassword } from "../lib/auth/passwords";
 import { signSessionToken, verifySessionToken } from "../lib/auth/session";
-import { requireTenantContext, TenantAuthorizationError } from "../lib/tenant/context";
+import { requireTenantContext, TenantAuthorizationError, setTenantContextCache, clearTenantContextCache } from "../lib/tenant/context";
 import { hasPermission, requirePermission, PermissionDeniedError } from "../lib/auth/permissions";
 import { checkRateLimit } from "../lib/auth/rate-limiter";
 import { createVerificationToken, verifyAndConsumeToken } from "../lib/auth/tokens";
@@ -42,11 +42,22 @@ describe("Secure Authentication & RBAC Security Suite", () => {
     });
 
     it("verifies and extracts active tenant from an authentic signed session token", async () => {
+      const testUserId = "507f1f77bcf86cd799439011";
+      const testTenantId = "507f1f77bcf86cd799439012";
+      setTenantContextCache(testTenantId, testUserId, {
+        tenantId: testTenantId,
+        tenantName: "Elvora Test Tenant",
+        userId: testUserId,
+        userEmail: "admin@elvora.com",
+        userName: "Elvora Admin (Test)",
+        role: "OWNER",
+      });
+
       const token = await signSessionToken({
-        userId: "demo-admin-id",
+        userId: testUserId,
         email: "admin@elvora.com",
         name: "Elvora Admin (Test)",
-        activeTenantId: "demo-tenant-id",
+        activeTenantId: testTenantId,
         role: "OWNER",
       });
 
@@ -57,9 +68,11 @@ describe("Secure Authentication & RBAC Security Suite", () => {
       });
 
       const context = await requireTenantContext(mockReq);
-      expect(context.userId).toBe("demo-admin-id");
-      expect(context.tenantId).toBe("demo-tenant-id");
+      expect(context.userId).toBe(testUserId);
+      expect(context.tenantId).toBe(testTenantId);
       expect(context.role).toBe("OWNER");
+
+      clearTenantContextCache();
     });
   });
 

@@ -435,17 +435,10 @@ export default function UniversalPurchasesPage() {
       {/* Brand & Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
-              <Truck className="h-3.5 w-3.5 text-blue-600" />
-              Elvora Procurement
-            </span>
-            <span className="text-xs text-slate-400 font-mono">Vendors & Purchases</span>
-          </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Purchases & Supplier Management
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <p className="mt-1 text-xs sm:text-sm text-slate-500">
             Vendor bills, stock receipting, debit notes, ledger statements, and payment settlements
           </p>
         </div>

@@ -1,4 +1,4 @@
-import prisma, { runInTransaction } from "@/lib/db/prisma";
+import prisma, { runInTransaction, runTransactionWithRetry } from "@/lib/db/prisma";
 import { checkPlanLimit } from "@/lib/billing/service";
 import {
   calculateInvoiceItem,
@@ -13,8 +13,10 @@ import { CrossTenantReferenceError, CrossTenantAccessDeniedError } from "@/lib/t
 import {
   postSalesInvoiceAccounting,
   postCustomerReceiptAccounting,
+  postSalesReturnAccounting,
 } from "@/lib/accounting/service";
 import { clearTenantDashboardMetricsCache } from "@/lib/dashboard/metrics";
+import { publishAutomationEvent } from "@/lib/automation/events";
 
 export interface CreateInvoiceItemInput {
   variantId: string;
@@ -82,36 +84,60 @@ export async function getNextSequentialNumber(
   const shortFy = fiscalYear.replace("-", ""); // e.g. "2026-27" -> "202627" or "2627"
   const fyPrefix = `${shortFy.slice(2, 4)}${shortFy.slice(4)}`; // e.g. "2627"
 
-  // Atomically find or create sequence
-  let seq = await client.invoiceSequence.findUnique({
-    where: {
-      tenantId_fiscalYear_seriesType: {
-        tenantId,
-        fiscalYear,
-        seriesType,
-      },
-    },
-  });
-
+  let seq: any = null;
   let curNum = 1;
 
-  if (seq) {
-    curNum = seq.nextNumber;
-    await client.invoiceSequence.update({
-      where: { id: seq.id },
-      data: { nextNumber: curNum + 1 },
-    });
-  } else {
-    await client.invoiceSequence.create({
-      data: {
+  if (typeof client.invoiceSequence?.upsert === "function") {
+    seq = await client.invoiceSequence.upsert({
+      where: {
+        tenantId_fiscalYear_seriesType: {
+          tenantId,
+          fiscalYear,
+          seriesType,
+        },
+      },
+      create: {
         tenantId,
         fiscalYear,
         seriesType,
         prefix: defaultPrefix,
         nextNumber: 2,
       },
+      update: {
+        nextNumber: { increment: 1 },
+      },
     });
-    curNum = 1;
+    curNum = seq.nextNumber - 1;
+  } else {
+    // Fallback for test mocks that only mock findUnique/create/update
+    seq = await client.invoiceSequence.findUnique({
+      where: {
+        tenantId_fiscalYear_seriesType: {
+          tenantId,
+          fiscalYear,
+          seriesType,
+        },
+      },
+    });
+
+    if (seq) {
+      curNum = seq.nextNumber;
+      await client.invoiceSequence.update({
+        where: { id: seq.id },
+        data: { nextNumber: curNum + 1 },
+      });
+    } else {
+      await client.invoiceSequence.create({
+        data: {
+          tenantId,
+          fiscalYear,
+          seriesType,
+          prefix: defaultPrefix,
+          nextNumber: 2,
+        },
+      });
+      curNum = 1;
+    }
   }
 
   const prefix = seq?.prefix || defaultPrefix;
@@ -203,21 +229,23 @@ export async function createSalesInvoice(
 
   const defaultPrefix = isTenantGstRegistered ? (isB2B ? "INV-" : "RET-") : "BOS-";
 
-  // Execute entire invoice creation & stock deduction inside transaction
-  return await runInTransaction(client, async (tx: any) => {
+  // Execute entire invoice creation & stock deduction inside transaction with transient conflict retries
+  const result = await runTransactionWithRetry(
+    client,
+    async (tx: any) => {
     // Generate sequential number
     const invoiceNumber = await getNextSequentialNumber(
       tenantId,
       seriesType,
       getIndianFinancialYear(invoiceDate),
       defaultPrefix,
-      tx
+      client
     );
 
     // Fetch and snapshot line items
     const processedItems: any[] = [];
     const calculatedItemsForSummary: InvoiceItemCalculationResult[] = [];
-    const stockDeductionItems: Array<{ variantId: string; quantity: number }> = [];
+    const stockDeductionItems: Array<{ variantId: string; quantity: number; uom?: string }> = [];
 
     for (const itemInput of items) {
       const variant = await tx.productVariant.findFirst({
@@ -270,6 +298,7 @@ export async function createSalesInvoice(
       stockDeductionItems.push({
         variantId: variant.id,
         quantity: itemInput.quantity,
+        uom: variant.product.uom,
       });
     }
 
@@ -368,7 +397,30 @@ export async function createSalesInvoice(
 
     clearTenantDashboardMetricsCache(tenantId);
     return { isDuplicate: false, invoice };
-  });
+  }, { maxRetries: 8, baseDelayMs: 250, maxDelayMs: 3000, idempotencyKey });
+
+  if (!result.isDuplicate && result.invoice) {
+    publishAutomationEvent(
+      {
+        tenantId,
+        eventType: "INVOICE_CREATED",
+        entityType: "INVOICE",
+        entityId: result.invoice.id,
+        payload: {
+          invoiceNumber: result.invoice.invoiceNumber,
+          customerName: result.invoice.customerName,
+          customerId: result.invoice.customerId,
+          totalAmount: result.invoice.totalAmount,
+          balanceAmount: result.invoice.balanceAmount,
+          status: result.invoice.status,
+          dueDate: result.invoice.dueDate,
+        },
+      },
+      client
+    ).catch(() => {});
+  }
+
+  return result;
 }
 
 /**
@@ -551,6 +603,29 @@ export async function createCreditNoteForInvoice(
       },
       tx
     );
+
+    // Double-entry accounting for sales return (credit note)
+    if (tx.ledgerAccount) {
+      const cgstAmt = invoice.isInterState ? 0 : Math.round((taxTotal / 2) * 100) / 100;
+      const sgstAmt = invoice.isInterState ? 0 : Math.round((taxTotal / 2) * 100) / 100;
+      const igstAmt = invoice.isInterState ? taxTotal : 0;
+      const returnTotal = Math.round((subtotal + cgstAmt + sgstAmt + igstAmt) * 100) / 100;
+
+      await postSalesReturnAccounting(
+        tenantId,
+        {
+          id: creditNote.id,
+          creditNoteNumber,
+          taxableAmount: subtotal,
+          cgstAmount: cgstAmt,
+          sgstAmount: sgstAmt,
+          igstAmount: igstAmt,
+          totalAmount: returnTotal,
+          createdAt: creditNote.createdAt,
+        },
+        tx
+      );
+    }
 
     return { creditNote, salesReturn };
   });
@@ -807,5 +882,25 @@ export async function recordCustomerPayment(
     };
   };
 
-  return await runInTransaction(client, runPayment);
+  const result = await runInTransaction(client, runPayment);
+
+  if (result && result.payment) {
+    publishAutomationEvent(
+      {
+        tenantId,
+        eventType: "PAYMENT_RECEIVED",
+        entityType: "PAYMENT",
+        entityId: result.payment.id,
+        payload: {
+          paymentNumber: result.payment.paymentNumber,
+          invoiceId,
+          amount: result.appliedAmount,
+          remainingBalance: result.remainingInvoiceBalance,
+        },
+      },
+      client
+    ).catch(() => {});
+  }
+
+  return result;
 }

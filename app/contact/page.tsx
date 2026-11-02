@@ -5,7 +5,6 @@ import {
   Mail, 
   MapPin, 
   Clock, 
-  MessageSquare, 
   HelpCircle,
   ShieldCheck
 } from "lucide-react";
@@ -70,12 +69,7 @@ export default function ContactPage() {
         {/* Hero Section */}
         <section className="relative overflow-hidden px-4 pt-10 pb-12 sm:px-6 lg:pt-16 lg:pb-16 text-center">
           <div className="mx-auto max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700 mb-6">
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span>We&apos;re Here to Help</span>
-            </div>
-
-            <h1 className="text-3xl font-extrabold tracking-tight text-[#111827] sm:text-4xl lg:text-5xl leading-tight">
+            <h1 className="text-3xl font-bold tracking-tight text-[#111827] sm:text-4xl lg:text-5xl leading-tight">
               Get in Touch with the <br />
               <span className="text-[#2563EB]">Elvora Product & Sales Team</span>
             </h1>

@@ -2,7 +2,6 @@ import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { 
-  FileText, 
   ArrowRight, 
   Send, 
   Clock, 
@@ -97,12 +96,7 @@ export default function OnlineInvoicingSoftwarePage() {
         {/* Hero Section */}
         <section className="relative overflow-hidden px-4 pt-10 pb-16 sm:px-6 lg:pt-16 lg:pb-20">
           <div className="mx-auto max-w-4xl text-center">
-            <div className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-bold text-indigo-700 mb-6">
-              <FileText className="h-3.5 w-3.5" />
-              <span>Modern Cloud Invoicing</span>
-            </div>
-
-            <h1 className="text-3xl font-extrabold tracking-tight text-[#111827] sm:text-4xl lg:text-5xl leading-tight">
+            <h1 className="text-3xl font-bold tracking-tight text-[#111827] sm:text-4xl lg:text-5xl leading-tight">
               Create, Send & Track <br />
               <span className="text-[#2563EB]">Professional Invoices Online</span>
             </h1>

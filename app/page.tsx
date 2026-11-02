@@ -2,9 +2,6 @@ import React from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
 import { 
   Boxes, 
   ShieldCheck, 
@@ -62,16 +59,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function HomePage() {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (sessionCookie) {
-    const session = await verifySessionToken(sessionCookie);
-    if (session && session.userId && session.activeTenantId) {
-      redirect("/dashboard");
-    }
-  }
-
+export default function HomePage() {
   const industries = [
     "Retail Stores & Supermarkets",
     "Wholesalers & Distributors",
@@ -209,7 +197,7 @@ export default async function HomePage() {
         <section className="relative overflow-hidden bg-gradient-to-b from-white via-[#F8FAFC] to-[#F8FAFC] px-4 pt-16 pb-12 sm:px-6 lg:pt-20 lg:pb-16">
           <div className="mx-auto max-w-4xl text-center">
             {/* Main Headline */}
-            <h1 className="text-4xl font-extrabold tracking-tight text-[#111827] sm:text-5xl lg:text-6xl leading-[1.15]">
+            <h1 className="text-3xl font-bold tracking-tight text-[#111827] sm:text-4xl lg:text-5xl leading-tight">
               The Universal Operating System <br className="hidden sm:inline" />
               <span className="text-[#2563EB]">for Modern Growing Businesses.</span>
             </h1>
@@ -223,14 +211,14 @@ export default async function HomePage() {
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5 sm:gap-4">
               <Link
                 href="/register"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-6 py-3.5 text-sm sm:text-base font-semibold text-white shadow-sm hover:bg-[#1D4ED8] active:bg-blue-800 transition-all"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm sm:text-base font-semibold text-white shadow-sm hover:bg-blue-700 active:bg-blue-800 transition-all"
               >
                 Get Started Free
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center rounded-lg border border-[#E2E8F0] bg-white px-6 py-3.5 text-sm sm:text-base font-semibold text-[#111827] hover:bg-slate-50 transition-colors shadow-xs"
+                className="inline-flex items-center justify-center rounded-lg border border-[#E2E8F0] bg-white px-6 py-3 text-sm sm:text-base font-semibold text-[#111827] hover:bg-slate-50 transition-colors shadow-xs"
               >
                 Sign In
               </Link>
@@ -319,10 +307,7 @@ export default async function HomePage() {
         <section className="bg-white border-y border-[#E2E8F0] px-4 py-16 sm:px-6 lg:py-20">
           <div className="mx-auto max-w-7xl">
             <div className="text-center mb-10">
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-                Speed &amp; Ergonomics
-              </span>
-              <h2 className="mt-3 text-2xl font-bold text-[#111827] sm:text-3xl">
+              <h2 className="text-2xl font-bold text-[#111827] sm:text-3xl">
                 Engineered for Rush-Hour Counter Checkout
               </h2>
               <p className="mt-2 text-sm text-[#64748B] max-w-xl mx-auto">

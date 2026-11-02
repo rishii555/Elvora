@@ -12,11 +12,16 @@ import {
   History,
   Package,
   Layers,
-  Sparkles,
   ShieldCheck,
   EyeOff,
   X,
   RefreshCw,
+  Building2,
+  ArrowRightLeft,
+  BookmarkCheck,
+  CheckCircle2,
+  Edit3,
+  Archive,
 } from "lucide-react";
 import { formatINR } from "@/lib/utils/format";
 import { TableContainer, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -43,6 +48,9 @@ export interface InventoryItemUI {
   mrp: number;
   gstRate: number;
   currentStock: number;
+  physicalStock?: number;
+  reservedStock?: number;
+  availableStock?: number;
   minStockAlert: number;
   isLowStock: boolean;
   isActive: boolean;
@@ -65,7 +73,19 @@ export interface StockMovementUI {
 }
 
 export default function UniversalInventoryPage() {
-  const { data: invData, isLoading, mutate } = useSWR("/api/inventory");
+  const [activeTab, setActiveTab] = useState<"catalog" | "warehouses" | "transfers" | "low-stock" | "reservations">("catalog");
+  const [selectedLocation, setSelectedLocation] = useState<string>("ALL");
+
+  // Main inventory query (supports warehouse filter)
+  const invUrl = selectedLocation === "ALL" ? "/api/inventory" : `/api/inventory?locationId=${selectedLocation}`;
+  const { data: invData, isLoading, mutate } = useSWR(invUrl);
+  const { data: locationsData, mutate: mutateLocations } = useSWR("/api/inventory/locations");
+  const { data: transfersData, mutate: mutateTransfers } = useSWR("/api/inventory/transfers");
+  const { data: lowStockData, mutate: mutateLowStock } = useSWR(
+    selectedLocation === "ALL" ? "/api/inventory/low-stock" : `/api/inventory/low-stock?locationId=${selectedLocation}`
+  );
+  const { data: reservationsData, mutate: mutateReservations } = useSWR("/api/inventory/reservations");
+
   const items: InventoryItemUI[] = useMemo(() => invData?.items || [], [invData]);
   const valuationData = invData?.valuation || {
     totalSkus: 0,
@@ -75,7 +95,7 @@ export default function UniversalInventoryPage() {
     totalValuation: 0,
     isValuationMasked: false,
   };
-  const userRole = invData?.tenant?.role || "OWNER";
+  const locationsList = useMemo(() => locationsData?.locations || [], [locationsData]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
@@ -87,15 +107,47 @@ export default function UniversalInventoryPage() {
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isAddWarehouseOpen, setIsAddWarehouseOpen] = useState(false);
+  const [isEditWarehouseOpen, setIsEditWarehouseOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
 
   // Active adjusting item
   const [adjustingItem, setAdjustingItem] = useState<InventoryItemUI | null>(null);
   const [adjustmentDelta, setAdjustmentDelta] = useState<number>(1);
+  const [adjustmentLocationId, setAdjustmentLocationId] = useState<string>("");
   const [adjustmentReason, setAdjustmentReason] = useState<
     "OPENING_STOCK" | "DAMAGED" | "SCRAPPED" | "AUDIT_CORRECTION" | "INTERNAL_USE" | "THEFT_OR_LOSS"
   >("AUDIT_CORRECTION");
   const [adjustmentNotes, setAdjustmentNotes] = useState("");
   const [adjustmentError, setAdjustmentError] = useState("");
+
+  // Warehouse CRUD state
+  const [editingWarehouse, setEditingWarehouse] = useState<any>(null);
+  const [warehouseForm, setWarehouseForm] = useState({ name: "", code: "", address: "", isDefault: false });
+  const [warehouseError, setWarehouseError] = useState("");
+
+  // Transfer state
+  const [transferForm, setTransferForm] = useState({
+    sourceLocationId: "",
+    destinationLocationId: "",
+    variantId: "",
+    quantity: 1,
+    notes: "",
+  });
+  const [transferError, setTransferError] = useState("");
+  const [transferSuccess, setTransferSuccess] = useState("");
+
+  // Reservation Form state
+  const [reserveForm, setReserveForm] = useState({
+    variantId: "",
+    locationId: "",
+    quantity: 1,
+    referenceType: "MANUAL",
+    referenceId: `RES-${Date.now().toString().slice(-6)}`,
+    notes: "",
+  });
+  const [reserveError, setReserveError] = useState("");
 
   // Movement Ledger state
   const [historyItem, setHistoryItem] = useState<InventoryItemUI | null>(null);
@@ -117,7 +169,10 @@ export default function UniversalInventoryPage() {
     model: "",
     size: "",
     colorFinish: "",
-    uom: "PCS" as "PCS" | "SET" | "BOX" | "KG" | "MTR" | "LTR" | "PKT",
+    uom: "PCS" as "PCS" | "SET" | "PAIR" | "BOX" | "KG" | "MTR",
+    material: "",
+    mountingType: "",
+    warrantyDuration: "",
     hsnCode: "",
     gstRate: "18",
     purchasePrice: "",
@@ -127,12 +182,10 @@ export default function UniversalInventoryPage() {
     minStockAlert: "5",
   });
 
-  // Helper to revalidate inventory cache
   const fetchInventory = async () => {
-    await mutate();
+    await Promise.all([mutate(), mutateLocations(), mutateLowStock(), mutateTransfers(), mutateReservations()]);
   };
 
-  // Filter Categories & Finishes
   const categories = useMemo(() => {
     const set = new Set(items.map((i) => i.category));
     return ["ALL", ...Array.from(set)];
@@ -154,75 +207,91 @@ export default function UniversalInventoryPage() {
         item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.barcode && item.barcode.includes(searchTerm)) ||
-        item.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.colorFinish.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesCat = selectedCategory === "ALL" || item.category === selectedCategory;
-      const matchesFin = selectedFinish === "ALL" || item.colorFinish.toLowerCase() === selectedFinish.toLowerCase();
-
+        item.brand.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === "ALL" || item.category === selectedCategory;
+      const matchesFinish = selectedFinish === "ALL" || item.colorFinish === selectedFinish;
       let matchesStock = true;
-      if (selectedStockStatus === "LOW_STOCK") {
-        matchesStock = item.isLowStock;
-      } else if (selectedStockStatus === "OUT_OF_STOCK") {
-        matchesStock = item.currentStock <= 0;
-      } else if (selectedStockStatus === "HEALTHY") {
-        matchesStock = !item.isLowStock && item.currentStock > 0;
-      }
-
-      return matchesSearch && matchesCat && matchesFin && matchesStock;
+      if (selectedStockStatus === "LOW_STOCK") matchesStock = item.isLowStock;
+      else if (selectedStockStatus === "OUT_OF_STOCK") matchesStock = (item.availableStock ?? item.currentStock) <= 0;
+      else if (selectedStockStatus === "HEALTHY") matchesStock = (item.availableStock ?? item.currentStock) > 10;
+      return matchesSearch && matchesCategory && matchesFinish && matchesStock;
     });
   }, [items, searchTerm, selectedCategory, selectedFinish, selectedStockStatus]);
 
-  // Handle Add Item
+  // Handle CSV Import
+  const handleImportCsv = async () => {
+    if (!csvInput.trim()) return;
+    setImportStatus("Importing CSV...");
+    setImportErrors([]);
+
+    try {
+      const res = await fetch("/api/inventory/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csvContent: csvInput }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setImportStatus(`Successfully imported ${data.totalImported} items!`);
+        await fetchInventory();
+        setTimeout(() => {
+          setIsImportModalOpen(false);
+          setImportStatus(null);
+          setCsvInput("");
+        }, 1500);
+      } else {
+        setImportStatus("Import failed");
+        setImportErrors(data.errors || [data.error || "Unknown validation error"]);
+      }
+    } catch {
+      setImportStatus("Import failed");
+      setImportErrors(["Network or server error occurred during CSV parsing."]);
+    }
+  };
+
+  // Handle Create Product
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = {
-        name: newItem.name,
-        sku: newItem.sku || `SKU-${Date.now().toString().slice(-6)}`,
-        barcode: newItem.barcode || undefined,
-        brand: newItem.brand,
-        category: newItem.category,
-        model: newItem.model || undefined,
-        size: newItem.size || undefined,
-        colorFinish: newItem.colorFinish || undefined,
-        uom: newItem.uom,
-        hsnCode: newItem.hsnCode,
-        gstRate: Number(newItem.gstRate) || 18,
-        purchasePrice: Number(newItem.purchasePrice) || 0,
-        sellingPrice: Number(newItem.sellingPrice) || 0,
-        mrp: Number(newItem.mrp) || 0,
-        openingStock: Number(newItem.openingStock) || 0,
-        minStockAlert: Number(newItem.minStockAlert) || 5,
-      };
-
-      await fetch("/api/inventory", {
+      const res = await fetch("/api/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...newItem,
+          purchasePrice: Number(newItem.purchasePrice) || 0,
+          sellingPrice: Number(newItem.sellingPrice) || 0,
+          mrp: Number(newItem.mrp) || 0,
+          openingStock: Number(newItem.openingStock) || 0,
+          gstRate: Number(newItem.gstRate) || 18,
+          minStockAlert: Number(newItem.minStockAlert) || 5,
+        }),
       });
 
-      await mutate();
-      setIsAddModalOpen(false);
-      setNewItem({
-        name: "",
-        sku: "",
-        barcode: "",
-        brand: "",
-        category: "General",
-        model: "",
-        size: "",
-        colorFinish: "",
-        uom: "PCS",
-        hsnCode: "",
-        gstRate: "18",
-        purchasePrice: "",
-        sellingPrice: "",
-        mrp: "",
-        openingStock: "0",
-        minStockAlert: "5",
-      });
+      if (res.ok) {
+        await fetchInventory();
+        setIsAddModalOpen(false);
+        setNewItem({
+          name: "",
+          sku: "",
+          barcode: "",
+          brand: "",
+          category: "General",
+          model: "",
+          size: "",
+          colorFinish: "",
+          uom: "PCS",
+          material: "",
+          mountingType: "",
+          warrantyDuration: "",
+          hsnCode: "",
+          gstRate: "18",
+          purchasePrice: "",
+          sellingPrice: "",
+          mrp: "",
+          openingStock: "0",
+          minStockAlert: "5",
+        });
+      }
     } catch {
       setIsAddModalOpen(false);
     }
@@ -247,6 +316,7 @@ export default function UniversalInventoryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           variantId: adjustingItem.id,
+          locationId: adjustmentLocationId || undefined,
           quantityDelta: adjustmentDelta,
           reason: adjustmentReason,
           notes: adjustmentNotes || `Manual stock adjustment (${adjustmentReason})`,
@@ -259,18 +329,170 @@ export default function UniversalInventoryPage() {
         setAdjustingItem(null);
       } else {
         const err = await res.json();
-        if (err.error) {
-          setAdjustmentError(err.error);
-        } else {
-          await mutate();
-          setIsAdjustModalOpen(false);
-          setAdjustingItem(null);
-        }
+        setAdjustmentError(err.error || "Failed to adjust stock");
       }
     } catch {
-      await mutate();
-      setIsAdjustModalOpen(false);
-      setAdjustingItem(null);
+      setAdjustmentError("Failed to apply stock adjustment");
+    }
+  };
+
+  // Handle Create Warehouse
+  const handleCreateWarehouse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWarehouseError("");
+    try {
+      const res = await fetch("/api/inventory/locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(warehouseForm),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await fetchInventory();
+        setIsAddWarehouseOpen(false);
+        setWarehouseForm({ name: "", code: "", address: "", isDefault: false });
+      } else {
+        setWarehouseError(data.error || "Failed to create location");
+      }
+    } catch {
+      setWarehouseError("Failed to create location");
+    }
+  };
+
+  // Handle Update Warehouse
+  const handleUpdateWarehouse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWarehouse) return;
+    setWarehouseError("");
+    try {
+      const res = await fetch(`/api/inventory/locations/${editingWarehouse.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(warehouseForm),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await fetchInventory();
+        setIsEditWarehouseOpen(false);
+        setEditingWarehouse(null);
+      } else {
+        setWarehouseError(data.error || "Failed to update location");
+      }
+    } catch {
+      setWarehouseError("Failed to update location");
+    }
+  };
+
+  // Handle Archive Warehouse (with non-zero stock guard)
+  const handleArchiveWarehouse = async (loc: any) => {
+    if (!confirm(`Are you sure you want to archive warehouse '${loc.name}'?`)) return;
+    try {
+      const res = await fetch(`/api/inventory/locations/${loc.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await fetchInventory();
+      } else {
+        alert(data.error || "Failed to archive location. Please transfer or adjust remaining stock first.");
+      }
+    } catch {
+      alert("Error archiving warehouse location.");
+    }
+  };
+
+  // Handle Stock Transfer
+  const handleExecuteTransfer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTransferError("");
+    setTransferSuccess("");
+
+    if (transferForm.sourceLocationId === transferForm.destinationLocationId) {
+      setTransferError("Source and destination warehouses cannot be the same");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/inventory/transfers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceLocationId: transferForm.sourceLocationId,
+          destinationLocationId: transferForm.destinationLocationId,
+          items: [{ variantId: transferForm.variantId, quantity: Number(transferForm.quantity) }],
+          notes: transferForm.notes,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTransferSuccess("Transfer completed successfully!");
+        await fetchInventory();
+        setTimeout(() => {
+          setIsTransferModalOpen(false);
+          setTransferSuccess("");
+          setTransferForm({
+            sourceLocationId: "",
+            destinationLocationId: "",
+            variantId: "",
+            quantity: 1,
+            notes: "",
+          });
+        }, 1200);
+      } else {
+        setTransferError(data.error || "Transfer failed");
+      }
+    } catch {
+      setTransferError("Network error executing transfer");
+    }
+  };
+
+  // Handle Create Reservation
+  const handleCreateReservation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setReserveError("");
+    try {
+      const res = await fetch("/api/inventory/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...reserveForm,
+          quantity: Number(reserveForm.quantity),
+          locationId: reserveForm.locationId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await fetchInventory();
+        setIsReserveModalOpen(false);
+        setReserveForm({
+          variantId: "",
+          locationId: "",
+          quantity: 1,
+          referenceType: "MANUAL",
+          referenceId: `RES-${Date.now().toString().slice(-6)}`,
+          notes: "",
+        });
+      } else {
+        setReserveError(data.error || "Failed to reserve stock");
+      }
+    } catch {
+      setReserveError("Network error creating reservation");
+    }
+  };
+
+  // Handle Release Reservation
+  const handleReleaseReservation = async (resId: string) => {
+    if (!confirm("Release this stock reservation back to available inventory?")) return;
+    try {
+      const res = await fetch(`/api/inventory/reservations/${resId}/release`, { method: "POST" });
+      if (res.ok) {
+        await fetchInventory();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to release reservation");
+      }
+    } catch {
+      alert("Error releasing reservation");
     }
   };
 
@@ -286,63 +508,12 @@ export default function UniversalInventoryPage() {
         const data = await res.json();
         setMovementsList(data.movements || []);
       } else {
-        // Fallback demo movement
-        setMovementsList([
-          {
-            id: "m-1",
-            type: "INITIAL_SETUP",
-            quantity: item.currentStock,
-            unitCost: item.purchasePrice,
-            balanceAfter: item.currentStock,
-            referenceType: "SETUP",
-            referenceId: "INIT-001",
-            reason: "OPENING_STOCK",
-            notes: "Opening balance ledger entry",
-            locationName: "Main Store Godown",
-            createdAt: new Date().toISOString(),
-          },
-        ]);
+        setMovementsList([]);
       }
     } catch {
       setMovementsList([]);
     } finally {
       setIsLoadingMovements(false);
-    }
-  };
-
-  // Handle CSV Export
-  const handleExportCsv = () => {
-    window.location.href = "/api/inventory/export";
-  };
-
-  // Handle CSV Import
-  const handleImportCsv = async () => {
-    setImportStatus("Importing...");
-    setImportErrors([]);
-
-    try {
-      const res = await fetch("/api/inventory/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csvData: csvInput }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setImportStatus(`Success! Imported ${data.importedCount} new items, updated ${data.updatedCount}.`);
-        await fetchInventory();
-        setTimeout(() => {
-          setIsImportModalOpen(false);
-          setCsvInput("");
-          setImportStatus(null);
-        }, 1500);
-      } else {
-        setImportStatus("Import failed");
-        setImportErrors(data.details || [data.error || "Failed to parse CSV"]);
-      }
-    } catch (err: any) {
-      setImportStatus("Import failed");
-      setImportErrors([err.message || "Network error while importing"]);
     }
   };
 
@@ -352,21 +523,13 @@ export default function UniversalInventoryPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
-              <Sparkles className="h-3.5 w-3.5 text-blue-600" />
-              Elvora Inventory
-            </span>
-            <span className="text-xs text-slate-400 font-mono">Products & Stock Hub</span>
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 uppercase">
-              {userRole}
-            </span>
-            {isLoading && <RefreshCw className="h-3 w-3 animate-spin text-blue-500" />}
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Catalog & Stock Management
+            </h1>
+            {isLoading && <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-500" />}
           </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-            Catalog & Stock Management
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500">
-            Real-time multi-location tracking, product variants, HSN tax classifications, and inventory audit ledger
+          <p className="mt-1 text-xs sm:text-sm text-slate-500">
+            Real-time multi-location tracking, stock transfers, reservations, HSN tax classifications, and audit ledger
           </p>
         </div>
 
@@ -375,7 +538,25 @@ export default function UniversalInventoryPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExportCsv}
+            onClick={() => setIsTransferModalOpen(true)}
+            className="border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-medium"
+          >
+            <ArrowRightLeft className="mr-1.5 h-3.5 w-3.5 text-blue-600" /> Transfer Stock
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsReserveModalOpen(true)}
+            className="border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-medium"
+          >
+            <BookmarkCheck className="mr-1.5 h-3.5 w-3.5 text-amber-600" /> Reserve Stock
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => (window.location.href = "/api/inventory/export")}
             className="border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-medium"
           >
             <Download className="mr-1.5 h-3.5 w-3.5 text-slate-500" /> Export CSV
@@ -400,7 +581,65 @@ export default function UniversalInventoryPage() {
         </div>
       </div>
 
-      {/* KPI Cards with RBAC Cost Masking Awareness */}
+      {/* Navigation Tabs */}
+      <div className="flex border-b border-slate-200 gap-1 overflow-x-auto text-xs sm:text-sm font-medium">
+        <button
+          onClick={() => setActiveTab("catalog")}
+          className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "catalog"
+              ? "border-blue-600 text-blue-600 font-semibold"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <Package className="h-4 w-4" /> Catalog & Stock
+        </button>
+
+        <button
+          onClick={() => setActiveTab("warehouses")}
+          className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "warehouses"
+              ? "border-blue-600 text-blue-600 font-semibold"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <Building2 className="h-4 w-4" /> Warehouses ({locationsList.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab("transfers")}
+          className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "transfers"
+              ? "border-blue-600 text-blue-600 font-semibold"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <ArrowRightLeft className="h-4 w-4" /> Transfers ({transfersData?.totalCount || 0})
+        </button>
+
+        <button
+          onClick={() => setActiveTab("low-stock")}
+          className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "low-stock"
+              ? "border-blue-600 text-blue-600 font-semibold"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <AlertTriangle className="h-4 w-4 text-amber-500" /> Low Stock & Reorders ({lowStockData?.totalLowStock || valuationData.lowStockCount})
+        </button>
+
+        <button
+          onClick={() => setActiveTab("reservations")}
+          className={`flex items-center gap-2 px-4 py-2.5 border-b-2 transition-colors whitespace-nowrap ${
+            activeTab === "reservations"
+              ? "border-blue-600 text-blue-600 font-semibold"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <BookmarkCheck className="h-4 w-4 text-emerald-600" /> Reservations ({reservationsData?.totalCount || 0})
+        </button>
+      </div>
+
+      {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total SKUs */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
@@ -413,21 +652,23 @@ export default function UniversalInventoryPage() {
             </span>
           </div>
           <p className="mt-2 text-2xl font-bold text-slate-900">{valuationData.totalSkus}</p>
-          <span className="text-xs text-slate-400">Total active products across categories</span>
+          <span className="text-xs text-slate-400">Total active products in inventory</span>
         </div>
 
-        {/* Total Physical Units */}
+        {/* Total Units */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Stock on Hand
+              Units on Hand
             </span>
             <span className="rounded-full bg-emerald-50 p-1.5 text-emerald-600">
               <Layers className="h-4 w-4" />
             </span>
           </div>
           <p className="mt-2 text-2xl font-bold text-slate-900">{valuationData.totalUnits} <span className="text-sm font-normal text-slate-500">units</span></p>
-          <span className="text-xs text-slate-400">Total units across all store locations</span>
+          <span className="text-xs text-slate-400">
+            {selectedLocation === "ALL" ? "Across all warehouses" : `Filtered by selected location`}
+          </span>
         </div>
 
         {/* Low Stock Alerts */}
@@ -448,7 +689,7 @@ export default function UniversalInventoryPage() {
           </span>
         </div>
 
-        {/* Inventory Valuation (RBAC Masked for Billers) */}
+        {/* Inventory Valuation */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -474,229 +715,668 @@ export default function UniversalInventoryPage() {
         </div>
       </div>
 
-      {/* Search & Multi-Criteria Filtering */}
-      <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          {/* Search bar */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search by product, SKU, model, finish, brand, or barcode..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-xs sm:text-sm focus:border-blue-500 focus:outline-none"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
+      {/* TAB 1: CATALOG & STOCK */}
+      {activeTab === "catalog" && (
+        <div className="space-y-4">
+          {/* Search & Location Filter Bar */}
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by product, SKU, model, finish, brand, or barcode..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-xs sm:text-sm focus:border-blue-500 focus:outline-none"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Warehouse Location Selector */}
+                <select
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-semibold text-blue-700 bg-blue-50/50"
+                >
+                  <option value="ALL">🏢 All Warehouses</option>
+                  {locationsList.map((loc: any) => (
+                    <option key={loc.id} value={loc.id}>
+                      📍 {loc.name} {loc.isDefault ? "(Default)" : ""}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-medium text-slate-700"
+                >
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c === "ALL" ? "All Categories" : c}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedStockStatus}
+                  onChange={(e: any) => setSelectedStockStatus(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-medium text-slate-700"
+                >
+                  <option value="ALL">All Stock Levels</option>
+                  <option value="LOW_STOCK">Low Stock Alert</option>
+                  <option value="HEALTHY">Healthy Stock</option>
+                  <option value="OUT_OF_STOCK">Out of Stock</option>
+                </select>
+              </div>
+            </div>
+
+            {finishes.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100">
+                <span className="text-[11px] font-semibold text-slate-400 mr-1">Variants:</span>
+                {finishes.map((fin) => (
+                  <button
+                    key={fin}
+                    onClick={() => setSelectedFinish(fin)}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                      selectedFinish === fin
+                        ? "bg-blue-600 text-white font-semibold"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {fin === "ALL" ? "All Variants" : fin}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
-          {/* Quick Category Dropdown */}
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-medium text-slate-700"
+          {/* Main Table */}
+          <TableContainer>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product & Model</TableHead>
+                  <TableHead>Variant / Attributes</TableHead>
+                  <TableHead>HSN / Tax</TableHead>
+                  <TableHead className="text-right">Cost Price</TableHead>
+                  <TableHead className="text-right">Selling Price</TableHead>
+                  <TableHead className="text-center">Physical Stock</TableHead>
+                  <TableHead className="text-center">Reserved</TableHead>
+                  <TableHead className="text-center">Available Stock</TableHead>
+                  <TableHead className="text-center">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && items.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="p-0">
+                      <TableSkeleton rows={5} cols={9} />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredItems.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-12 text-slate-400">
+                      <Package className="mx-auto h-8 w-8 text-slate-300 mb-2" />
+                      <p className="font-medium text-slate-700">No matching products found</p>
+                      <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search keywords</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredItems.map((item) => {
+                    const physical = item.physicalStock ?? item.currentStock;
+                    const reserved = item.reservedStock ?? 0;
+                    const available = item.availableStock ?? Math.max(0, physical - reserved);
+
+                    return (
+                      <TableRow key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                        <TableCell>
+                          <div className="font-semibold text-slate-900">{item.productName}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="font-mono text-[11px] text-blue-600 font-semibold">{item.sku}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-[11px] text-slate-500 font-medium">{item.brand}</span>
+                          </div>
+                          {item.model && (
+                            <span className="inline-block mt-1 text-[11px] text-slate-500 italic">
+                              Model: {item.model}
+                            </span>
+                          )}
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="flex flex-col gap-1 items-start">
+                            {item.colorFinish ? (
+                              <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 border border-slate-200">
+                                {item.colorFinish}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-400">-</span>
+                            )}
+                            {item.size && (
+                              <span className="text-[11px] text-slate-500 font-mono">
+                                Size: {item.size}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="font-mono text-xs text-slate-800 font-semibold">
+                            HSN {item.hsnCode}
+                          </div>
+                          <span className="text-[11px] text-slate-400">GST {item.gstRate}%</span>
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          {item.purchasePrice !== null ? (
+                            <span className="text-xs text-slate-600 font-medium">
+                              {formatINR(item.purchasePrice)}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 italic">
+                              <EyeOff className="h-3 w-3" /> [Hidden]
+                            </span>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          <div className="font-bold text-slate-900 text-sm">
+                            {formatINR(item.sellingPrice)}
+                          </div>
+                          {item.margin !== null && (
+                            <span className="text-[10px] text-emerald-600 font-semibold">
+                              {item.margin}% margin
+                            </span>
+                          )}
+                        </TableCell>
+
+                        {/* Physical Stock */}
+                        <TableCell className="text-center font-mono text-xs font-semibold text-slate-800">
+                          {physical} {item.uom}
+                        </TableCell>
+
+                        {/* Reserved Stock */}
+                        <TableCell className="text-center font-mono text-xs text-amber-600 font-semibold">
+                          {reserved > 0 ? `${reserved} ${item.uom}` : "—"}
+                        </TableCell>
+
+                        {/* Available Stock */}
+                        <TableCell className="text-center">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold ${
+                              available <= 0
+                                ? "bg-rose-100 text-rose-700 border border-rose-200"
+                                : available <= item.minStockAlert
+                                ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            }`}
+                          >
+                            {available <= item.minStockAlert && <AlertTriangle className="h-3 w-3" />}
+                            {available} {item.uom}
+                          </span>
+                        </TableCell>
+
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setAdjustingItem(item);
+                                setAdjustmentDelta(1);
+                                setAdjustmentLocationId(selectedLocation !== "ALL" ? selectedLocation : "");
+                                setAdjustmentReason("AUDIT_CORRECTION");
+                                setAdjustmentNotes("");
+                                setAdjustmentError("");
+                                setIsAdjustModalOpen(true);
+                              }}
+                              className="h-7 text-xs border-slate-200 text-blue-600 hover:bg-blue-50 font-semibold"
+                            >
+                              <ArrowUpDown className="mr-1 h-3 w-3" /> Adjust
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setTransferForm({
+                                  sourceLocationId: selectedLocation !== "ALL" ? selectedLocation : (locationsList[0]?.id || ""),
+                                  destinationLocationId: locationsList[1]?.id || "",
+                                  variantId: item.id,
+                                  quantity: 1,
+                                  notes: `Transfer for ${item.sku}`,
+                                });
+                                setIsTransferModalOpen(true);
+                              }}
+                              className="h-7 text-xs border-slate-200 text-slate-600 hover:bg-slate-100"
+                              title="Transfer stock between warehouses"
+                            >
+                              <ArrowRightLeft className="h-3 w-3 text-blue-600" />
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenMovementHistory(item)}
+                              className="h-7 text-xs border-slate-200 text-slate-600 hover:bg-slate-100"
+                              title="View stock movement audit history"
+                            >
+                              <History className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </div>
+      )}
+
+      {/* TAB 2: WAREHOUSES MANAGEMENT */}
+      {activeTab === "warehouses" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Inventory Locations & Warehouses</h2>
+              <p className="text-xs text-slate-500">
+                Manage physical storage facilities, central godowns, and shop counters
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                setWarehouseForm({ name: "", code: "", address: "", isDefault: false });
+                setWarehouseError("");
+                setIsAddWarehouseOpen(true);
+              }}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-xs font-semibold"
             >
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c === "ALL" ? "All Categories" : c}
+              <Plus className="mr-1.5 h-4 w-4" /> Add Warehouse
+            </Button>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {locationsList.map((loc: any) => (
+              <div
+                key={loc.id}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-3 relative hover:border-blue-300 transition-colors"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-900 text-base">{loc.name}</span>
+                      {loc.isDefault && (
+                        <span className="rounded bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    {loc.code && <span className="font-mono text-xs text-slate-500 font-semibold">{loc.code}</span>}
+                  </div>
+                  <span
+                    className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${
+                      loc.isActive ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-slate-100 text-slate-500 border border-slate-200"
+                    }`}
+                  >
+                    {loc.isActive ? "Active" : "Archived"}
+                  </span>
+                </div>
+
+                <div className="text-xs text-slate-600 space-y-1">
+                  <div>📍 Address: {loc.address || "Not specified"}</div>
+                  <div className="flex justify-between pt-2 border-t border-slate-100 font-medium">
+                    <span>SKUs: <strong className="text-slate-800">{loc.totalSkus || 0}</strong></span>
+                    <span>Total Stock: <strong className="text-slate-800">{loc.totalUnits || 0} units</strong></span>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditingWarehouse(loc);
+                      setWarehouseForm({
+                        name: loc.name,
+                        code: loc.code || "",
+                        address: loc.address || "",
+                        isDefault: loc.isDefault,
+                      });
+                      setIsEditWarehouseOpen(true);
+                    }}
+                    className="h-7 text-xs border-slate-200 text-slate-700 hover:bg-slate-50"
+                  >
+                    <Edit3 className="mr-1 h-3 w-3" /> Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleArchiveWarehouse(loc)}
+                    className="h-7 text-xs border-rose-200 text-rose-600 hover:bg-rose-50"
+                    title="Safely archive location (requires 0 active stock)"
+                  >
+                    <Archive className="mr-1 h-3 w-3" /> Archive
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: STOCK TRANSFERS */}
+      {activeTab === "transfers" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Warehouse Transfers Log</h2>
+              <p className="text-xs text-slate-500">
+                Traceable audit trail of inter-facility stock movements with immutable balances
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                setTransferForm({
+                  sourceLocationId: locationsList[0]?.id || "",
+                  destinationLocationId: locationsList[1]?.id || "",
+                  variantId: items[0]?.id || "",
+                  quantity: 1,
+                  notes: "",
+                });
+                setTransferError("");
+                setTransferSuccess("");
+                setIsTransferModalOpen(true);
+              }}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-xs font-semibold"
+            >
+              <ArrowRightLeft className="mr-1.5 h-4 w-4" /> New Transfer
+            </Button>
+          </div>
+
+          <TableContainer>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Transfer Ref</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Item / Variant</TableHead>
+                  <TableHead className="text-center">Direction / Reason</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
+                  <TableHead className="text-right">Balance After</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transfersData?.transfers?.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-12 text-slate-400">
+                      <ArrowRightLeft className="mx-auto h-8 w-8 text-slate-300 mb-2" />
+                      <p className="font-medium text-slate-700">No stock transfers recorded yet</p>
+                      <p className="text-xs text-slate-400 mt-1">Execute your first inter-warehouse transfer above</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  transfersData?.transfers?.map((t: any) => (
+                    <TableRow key={t.id} className="text-xs hover:bg-slate-50/70">
+                      <TableCell className="font-mono font-semibold text-blue-600">{t.transferId || t.id.slice(-6)}</TableCell>
+                      <TableCell className="font-semibold text-slate-800">{t.locationName}</TableCell>
+                      <TableCell>
+                        <div className="font-medium text-slate-900">{t.productName}</div>
+                        <div className="text-[11px] font-mono text-slate-500">{t.sku}</div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span
+                          className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                            t.reason?.includes("IN") ? "bg-emerald-100 text-emerald-800" : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {t.reason || t.type}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-bold text-slate-900">
+                        {t.quantity} {t.uom}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-semibold text-slate-600">
+                        {t.balanceAfter} {t.uom}
+                      </TableCell>
+                      <TableCell className="text-slate-500 italic max-w-xs truncate">{t.notes || "—"}</TableCell>
+                      <TableCell className="text-slate-400 font-mono">
+                        {new Date(t.createdAt).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </div>
+      )}
+
+      {/* TAB 4: LOW STOCK & REORDERS */}
+      {activeTab === "low-stock" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Low Stock & Intelligent Reorders</h2>
+              <p className="text-xs text-slate-500">
+                Monitors physical on-hand vs reserved commitments, identifying stockouts and replenishment quantities
+              </p>
+            </div>
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-50/50"
+            >
+              <option value="ALL">🏢 All Warehouses</option>
+              {locationsList.map((loc: any) => (
+                <option key={loc.id} value={loc.id}>
+                  📍 {loc.name}
                 </option>
               ))}
             </select>
-
-            <select
-              value={selectedStockStatus}
-              onChange={(e: any) => setSelectedStockStatus(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-medium text-slate-700"
-            >
-              <option value="ALL">All Stock Levels</option>
-              <option value="LOW_STOCK">Low Stock Alert</option>
-              <option value="HEALTHY">Healthy Stock</option>
-              <option value="OUT_OF_STOCK">Out of Stock</option>
-            </select>
           </div>
-        </div>
 
-        {/* Quick Finish / Variant Chips (shown dynamically when items have variants) */}
-        {finishes.length > 1 && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100">
-            <span className="text-[11px] font-semibold text-slate-400 mr-1">Variants:</span>
-            {finishes.map((fin) => (
-              <button
-                key={fin}
-                onClick={() => setSelectedFinish(fin)}
-                className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
-                  selectedFinish === fin
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {fin === "ALL" ? "All Variants" : fin}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Main Table View */}
-      <TableContainer>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Product & Model</TableHead>
-              <TableHead>Variant / Attributes</TableHead>
-              <TableHead>HSN / Tax</TableHead>
-              <TableHead className="text-right">Cost Price</TableHead>
-              <TableHead className="text-right">Selling Price</TableHead>
-              <TableHead className="text-center">Stock Level</TableHead>
-              <TableHead className="text-center">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && items.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="p-0">
-                  <TableSkeleton rows={5} cols={7} />
-                </TableCell>
-              </TableRow>
-            ) : filteredItems.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-slate-400">
-                  <Package className="mx-auto h-8 w-8 text-slate-300 mb-2" />
-                  <p className="font-medium text-slate-700">No matching products found</p>
-                  <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search keywords, or add your first product</p>
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredItems.map((item) => (
-                <TableRow key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                  {/* Name & SKU */}
-                  <TableCell>
-                    <div className="font-semibold text-slate-900">{item.productName}</div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="font-mono text-[11px] text-blue-600 font-semibold">{item.sku}</span>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-[11px] text-slate-500 font-medium">{item.brand}</span>
-                    </div>
-                    {item.model && (
-                      <span className="inline-block mt-1 text-[11px] text-slate-500 italic">
-                        Model: {item.model}
-                      </span>
-                    )}
-                  </TableCell>
-
-                  {/* Finish & Size */}
-                  <TableCell>
-                    <div className="flex flex-col gap-1 items-start">
-                      {item.colorFinish ? (
-                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 border border-slate-200">
-                          {item.colorFinish}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">-</span>
-                      )}
-                      {item.size && (
-                        <span className="text-[11px] text-slate-500 font-mono">
-                          Size: {item.size}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-
-                  {/* HSN & GST Rate */}
-                  <TableCell>
-                    <div className="font-mono text-xs text-slate-800 font-semibold">
-                      HSN {item.hsnCode}
-                    </div>
-                    <span className="text-[11px] text-slate-400">GST {item.gstRate}%</span>
-                  </TableCell>
-
-                  {/* Cost Price (RBAC Masked) */}
-                  <TableCell className="text-right">
-                    {item.purchasePrice !== null ? (
-                      <span className="text-xs text-slate-600 font-medium">
-                        {formatINR(item.purchasePrice)}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 italic">
-                        <EyeOff className="h-3 w-3" /> [Hidden]
-                      </span>
-                    )}
-                  </TableCell>
-
-                  {/* Selling Price & Margin */}
-                  <TableCell className="text-right">
-                    <div className="font-bold text-slate-900 text-sm">
-                      {formatINR(item.sellingPrice)}
-                    </div>
-                    {item.margin !== null && (
-                      <span className="text-[10px] text-emerald-600 font-semibold">
-                        {item.margin}% margin
-                      </span>
-                    )}
-                  </TableCell>
-
-                  {/* Current Stock */}
-                  <TableCell className="text-center">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold ${
-                        item.currentStock <= 0
-                          ? "bg-rose-100 text-rose-700 border border-rose-200"
-                          : item.isLowStock
-                          ? "bg-amber-100 text-amber-800 border border-amber-200"
-                          : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      }`}
-                    >
-                      {item.isLowStock && <AlertTriangle className="h-3 w-3" />}
-                      {item.currentStock} {item.uom}
-                    </span>
-                  </TableCell>
-
-                  {/* Actions */}
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setAdjustingItem(item);
-                          setAdjustmentDelta(1);
-                          setAdjustmentReason("AUDIT_CORRECTION");
-                          setAdjustmentNotes("");
-                          setAdjustmentError("");
-                          setIsAdjustModalOpen(true);
-                        }}
-                        className="h-7 text-xs border-slate-200 text-blue-600 hover:bg-blue-50 font-semibold"
-                      >
-                        <ArrowUpDown className="mr-1 h-3 w-3" /> Adjust
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenMovementHistory(item)}
-                        className="h-7 text-xs border-slate-200 text-slate-600 hover:bg-slate-100"
-                        title="View stock movement audit history"
-                      >
-                        <History className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <TableContainer>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product & SKU</TableHead>
+                  <TableHead className="text-right">Physical Stock</TableHead>
+                  <TableHead className="text-right">Reserved Stock</TableHead>
+                  <TableHead className="text-right">Available Stock</TableHead>
+                  <TableHead className="text-right">Safety Threshold</TableHead>
+                  <TableHead className="text-center font-bold text-blue-700">Recommended Reorder</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-center">Action</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              </TableHeader>
+              <TableBody>
+                {lowStockData?.lowStockItems?.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-12 text-slate-400">
+                      <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
+                      <p className="font-medium text-slate-700">All stock levels are healthy!</p>
+                      <p className="text-xs text-slate-400 mt-1">No items are currently below their minimum safety thresholds.</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  lowStockData?.lowStockItems?.map((ls: any) => (
+                    <TableRow key={ls.variantId} className="text-xs hover:bg-slate-50/70">
+                      <TableCell>
+                        <div className="font-semibold text-slate-900">{ls.productName}</div>
+                        <div className="font-mono text-[11px] text-blue-600 font-semibold">{ls.sku}</div>
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-semibold">{ls.physicalStock} {ls.uom}</TableCell>
+                      <TableCell className="text-right font-mono text-amber-600 font-semibold">
+                        {ls.reservedStock > 0 ? `${ls.reservedStock} ${ls.uom}` : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-bold text-rose-600">
+                        {ls.availableStock} {ls.uom}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-slate-500">{ls.threshold} {ls.uom}</TableCell>
+                      <TableCell className="text-center">
+                        <span className="rounded-md bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">
+                          +{ls.suggestedReorder} {ls.uom}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span
+                          className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                            ls.isOutOfStock ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {ls.isOutOfStock ? "Out of Stock" : "Low Stock"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const found = items.find((i) => i.id === ls.variantId);
+                            if (found) {
+                              setAdjustingItem(found);
+                              setAdjustmentDelta(ls.suggestedReorder);
+                              setAdjustmentReason("OPENING_STOCK");
+                              setIsAdjustModalOpen(true);
+                            }
+                          }}
+                          className="h-7 text-xs border-slate-200 text-blue-600 font-semibold"
+                        >
+                          Replenish
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </div>
+      )}
 
-      {/* Stock Adjustment Dialog */}
+      {/* TAB 5: STOCK RESERVATIONS */}
+      {activeTab === "reservations" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Stock Reservations</h2>
+              <p className="text-xs text-slate-500">
+                Pending order allocations preventing overselling before invoice finalization
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                setReserveForm({
+                  variantId: items[0]?.id || "",
+                  locationId: locationsList[0]?.id || "",
+                  quantity: 1,
+                  referenceType: "SALES_ORDER",
+                  referenceId: `ORD-${Date.now().toString().slice(-6)}`,
+                  notes: "",
+                });
+                setReserveError("");
+                setIsReserveModalOpen(true);
+              }}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-xs font-semibold"
+            >
+              <BookmarkCheck className="mr-1.5 h-4 w-4" /> New Reservation
+            </Button>
+          </div>
+
+          <TableContainer>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Reference ID</TableHead>
+                  <TableHead>Item & SKU</TableHead>
+                  <TableHead>Warehouse</TableHead>
+                  <TableHead className="text-right">Reserved Quantity</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-center">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reservationsData?.reservations?.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-12 text-slate-400">
+                      <BookmarkCheck className="mx-auto h-8 w-8 text-slate-300 mb-2" />
+                      <p className="font-medium text-slate-700">No stock reservations on file</p>
+                      <p className="text-xs text-slate-400 mt-1">Reserve inventory for sales orders or estimates above</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  reservationsData?.reservations?.map((r: any) => (
+                    <TableRow key={r.id} className="text-xs hover:bg-slate-50/70">
+                      <TableCell className="font-mono font-semibold text-slate-800">
+                        {r.referenceType}: {r.referenceId}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-semibold text-slate-900">{r.variant?.name || "Standard Item"}</div>
+                        <div className="font-mono text-[11px] text-blue-600">{r.variant?.sku}</div>
+                      </TableCell>
+                      <TableCell className="text-slate-600">{r.location?.name || "All Locations"}</TableCell>
+                      <TableCell className="text-right font-mono font-bold text-amber-600">
+                        {r.quantity} {r.variant?.product?.uom}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span
+                          className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                            r.status === "CONFIRMED"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : r.status === "RELEASED"
+                              ? "bg-slate-100 text-slate-500"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {r.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-slate-500 italic max-w-xs truncate">{r.notes || "—"}</TableCell>
+                      <TableCell className="text-slate-400 font-mono">
+                        {new Date(r.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {r.status === "CONFIRMED" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReleaseReservation(r.id)}
+                            className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
+                          >
+                            Release
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </div>
+      )}
+
+      {/* MODAL 1: STOCK ADJUSTMENT */}
       <Dialog
         isOpen={isAdjustModalOpen}
         onClose={() => {
@@ -729,49 +1409,55 @@ export default function UniversalInventoryPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Adjustment Delta (Units)
+                Warehouse Location (Optional)
               </label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  value={adjustmentDelta}
-                  onChange={(e) => setAdjustmentDelta(parseInt(e.target.value, 10) || 0)}
-                  placeholder="e.g. +5 or -2"
-                  className="font-mono font-bold"
-                />
-                <div className="text-xs text-slate-500 whitespace-nowrap">
-                  New Balance:{" "}
-                  <span
-                    className={`font-bold font-mono ${
-                      adjustingItem.currentStock + adjustmentDelta < 0
-                        ? "text-rose-600"
-                        : "text-emerald-600"
-                    }`}
-                  >
-                    {adjustingItem.currentStock + adjustmentDelta} {adjustingItem.uom}
-                  </span>
-                </div>
-              </div>
-              <span className="text-[11px] text-slate-400 mt-1 block">
-                Use positive value to add stock, negative to deduct stock.
-              </span>
+              <select
+                value={adjustmentLocationId}
+                onChange={(e) => setAdjustmentLocationId(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
+              >
+                <option value="">Default Location</option>
+                {locationsList.map((loc: any) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name} {loc.isDefault ? "(Default)" : ""}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Mandatory Audit Reason
+                Quantity Delta ({adjustingItem.uom})
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  step={["KG", "MTR"].includes(adjustingItem.uom) ? "0.001" : "1"}
+                  value={adjustmentDelta}
+                  onChange={(e) => setAdjustmentDelta(parseFloat(e.target.value) || 0)}
+                  placeholder="Enter positive or negative quantity"
+                />
+                <div className="text-xs text-slate-500 font-semibold whitespace-nowrap">
+                  New: <span className="font-mono text-slate-900">{adjustingItem.currentStock + adjustmentDelta}</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Audit Reason *
               </label>
               <select
                 value={adjustmentReason}
                 onChange={(e: any) => setAdjustmentReason(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
               >
-                <option value="AUDIT_CORRECTION">Audit Correction (Physical Verification)</option>
-                <option value="OPENING_STOCK">Opening Stock Batch Setup</option>
-                <option value="DAMAGED">Damaged / Defective Stock</option>
-                <option value="SCRAPPED">Scrapped / Obsolete Model</option>
-                <option value="INTERNAL_USE">Store Display / Sample / Internal Use</option>
-                <option value="THEFT_OR_LOSS">Theft or Missing Stock</option>
+                <option value="AUDIT_CORRECTION">Audit Correction (Physical Count Discrepancy)</option>
+                <option value="OPENING_STOCK">Opening Stock Batch</option>
+                <option value="DAMAGED">Damaged Goods / Scrap</option>
+                <option value="SCRAPPED">Scrapped / Write-Off</option>
+                <option value="INTERNAL_USE">Internal Store Use / Display Sample</option>
+                <option value="THEFT_OR_LOSS">Theft or Shrinkage Loss</option>
               </select>
             </div>
 
@@ -783,7 +1469,7 @@ export default function UniversalInventoryPage() {
                 type="text"
                 value={adjustmentNotes}
                 onChange={(e) => setAdjustmentNotes(e.target.value)}
-                placeholder="e.g. Physical inventory count mismatch correction"
+                placeholder="e.g. Monthly physical inventory verification"
               />
             </div>
 
@@ -808,6 +1494,335 @@ export default function UniversalInventoryPage() {
             </div>
           </div>
         )}
+      </Dialog>
+
+      {/* MODAL 2: ADD WAREHOUSE */}
+      <Dialog
+        isOpen={isAddWarehouseOpen}
+        onClose={() => setIsAddWarehouseOpen(false)}
+        title="Add Inventory Location / Warehouse"
+      >
+        <form onSubmit={handleCreateWarehouse} className="space-y-4 pt-2">
+          {warehouseError && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 font-medium">
+              {warehouseError}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Location Name *</label>
+            <Input
+              required
+              value={warehouseForm.name}
+              onChange={(e) => setWarehouseForm({ ...warehouseForm, name: e.target.value })}
+              placeholder="e.g. Central Godown, Warehouse B, Main Store Counter"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Warehouse Code</label>
+            <Input
+              value={warehouseForm.code}
+              onChange={(e) => setWarehouseForm({ ...warehouseForm, code: e.target.value })}
+              placeholder="e.g. WH-01, CG-MAIN"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Address / Landmark</label>
+            <Input
+              value={warehouseForm.address}
+              onChange={(e) => setWarehouseForm({ ...warehouseForm, address: e.target.value })}
+              placeholder="e.g. Plot 42, Industrial Area Phase 2"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="wh-default"
+              checked={warehouseForm.isDefault}
+              onChange={(e) => setWarehouseForm({ ...warehouseForm, isDefault: e.target.checked })}
+              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="wh-default" className="text-xs text-slate-700 font-medium">
+              Set as primary default location for this tenant
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <Button variant="outline" size="sm" type="button" onClick={() => setIsAddWarehouseOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700 font-semibold">
+              Create Warehouse
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* MODAL 3: EDIT WAREHOUSE */}
+      <Dialog
+        isOpen={isEditWarehouseOpen}
+        onClose={() => {
+          setIsEditWarehouseOpen(false);
+          setEditingWarehouse(null);
+        }}
+        title="Edit Inventory Location"
+      >
+        <form onSubmit={handleUpdateWarehouse} className="space-y-4 pt-2">
+          {warehouseError && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 font-medium">
+              {warehouseError}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Location Name *</label>
+            <Input
+              required
+              value={warehouseForm.name}
+              onChange={(e) => setWarehouseForm({ ...warehouseForm, name: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Warehouse Code</label>
+            <Input
+              value={warehouseForm.code}
+              onChange={(e) => setWarehouseForm({ ...warehouseForm, code: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Address</label>
+            <Input
+              value={warehouseForm.address}
+              onChange={(e) => setWarehouseForm({ ...warehouseForm, address: e.target.value })}
+            />
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="wh-edit-default"
+              checked={warehouseForm.isDefault}
+              onChange={(e) => setWarehouseForm({ ...warehouseForm, isDefault: e.target.checked })}
+              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="wh-edit-default" className="text-xs text-slate-700 font-medium">
+              Set as primary default location
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => {
+                setIsEditWarehouseOpen(false);
+                setEditingWarehouse(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700 font-semibold">
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* MODAL 4: STOCK TRANSFER */}
+      <Dialog
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        title="Execute Warehouse Stock Transfer"
+      >
+        <form onSubmit={handleExecuteTransfer} className="space-y-4 pt-2">
+          {transferError && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 font-medium">
+              {transferError}
+            </div>
+          )}
+          {transferSuccess && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 font-semibold">
+              {transferSuccess}
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Source Warehouse *</label>
+              <select
+                required
+                value={transferForm.sourceLocationId}
+                onChange={(e) => setTransferForm({ ...transferForm, sourceLocationId: e.target.value })}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
+              >
+                <option value="">Select Source Location</option>
+                {locationsList.map((loc: any) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Destination Warehouse *</label>
+              <select
+                required
+                value={transferForm.destinationLocationId}
+                onChange={(e) => setTransferForm({ ...transferForm, destinationLocationId: e.target.value })}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
+              >
+                <option value="">Select Destination Location</option>
+                {locationsList.map((loc: any) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Product Variant *</label>
+            <select
+              required
+              value={transferForm.variantId}
+              onChange={(e) => setTransferForm({ ...transferForm, variantId: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
+            >
+              <option value="">Select Item to Transfer</option>
+              {items.map((it) => (
+                <option key={it.id} value={it.id}>
+                  {it.productName} ({it.sku}) — Available: {it.availableStock ?? it.currentStock} {it.uom}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Transfer Quantity *</label>
+            <Input
+              required
+              type="number"
+              step="any"
+              min="0.001"
+              value={transferForm.quantity}
+              onChange={(e) => setTransferForm({ ...transferForm, quantity: parseFloat(e.target.value) || 0 })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Transfer Notes (Optional)</label>
+            <Input
+              value={transferForm.notes}
+              onChange={(e) => setTransferForm({ ...transferForm, notes: e.target.value })}
+              placeholder="e.g. Stock balancing across stores"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <Button variant="outline" size="sm" type="button" onClick={() => setIsTransferModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700 font-semibold">
+              Execute Atomic Transfer
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* MODAL 5: STOCK RESERVATION */}
+      <Dialog
+        isOpen={isReserveModalOpen}
+        onClose={() => setIsReserveModalOpen(false)}
+        title="Reserve Inventory for Order / Customer"
+      >
+        <form onSubmit={handleCreateReservation} className="space-y-4 pt-2">
+          {reserveError && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 font-medium">
+              {reserveError}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Product Variant *</label>
+            <select
+              required
+              value={reserveForm.variantId}
+              onChange={(e) => setReserveForm({ ...reserveForm, variantId: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
+            >
+              <option value="">Select Variant</option>
+              {items.map((it) => (
+                <option key={it.id} value={it.id}>
+                  {it.productName} ({it.sku}) — Available: {it.availableStock ?? it.currentStock} {it.uom}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Warehouse (Optional)</label>
+            <select
+              value={reserveForm.locationId}
+              onChange={(e) => setReserveForm({ ...reserveForm, locationId: e.target.value })}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
+            >
+              <option value="">All Warehouses</option>
+              {locationsList.map((loc: any) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Quantity *</label>
+              <Input
+                required
+                type="number"
+                step="any"
+                min="0.001"
+                value={reserveForm.quantity}
+                onChange={(e) => setReserveForm({ ...reserveForm, quantity: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Reference ID *</label>
+              <Input
+                required
+                value={reserveForm.referenceId}
+                onChange={(e) => setReserveForm({ ...reserveForm, referenceId: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Notes (Optional)</label>
+            <Input
+              value={reserveForm.notes}
+              onChange={(e) => setReserveForm({ ...reserveForm, notes: e.target.value })}
+              placeholder="e.g. Reserved for Pending Customer Estimate #1024"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <Button variant="outline" size="sm" type="button" onClick={() => setIsReserveModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700 font-semibold">
+              Confirm Reservation
+            </Button>
+          </div>
+        </form>
       </Dialog>
 
       {/* Movement History Ledger Modal */}
@@ -844,6 +1859,8 @@ export default function UniversalInventoryPage() {
                       className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
                         m.type.includes("IN") || m.type === "PURCHASE"
                           ? "bg-emerald-100 text-emerald-800"
+                          : m.type === "TRANSFER"
+                          ? "bg-blue-100 text-blue-800"
                           : "bg-rose-100 text-rose-800"
                       }`}
                     >
@@ -861,6 +1878,9 @@ export default function UniversalInventoryPage() {
                     {m.unitCost !== null && (
                       <span className="text-slate-500">Cost: {formatINR(m.unitCost)}</span>
                     )}
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-medium">
+                    Warehouse: {m.locationName || "Default Warehouse"}
                   </div>
                   {m.reason && (
                     <div className="text-[11px] text-slate-500">
@@ -959,7 +1979,7 @@ Wireless Optical Mouse,MOU-WL-01,Logitech,Electronics,M185,Standard,Black,PCS,84
                 required
                 value={newItem.name}
                 onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                placeholder="e.g. Wireless Mouse, Cotton Shirt, or Industrial Drill"
+                placeholder="e.g. Basin Mixer, Sanitaryware Closet, CPVC Pipe"
               />
             </div>
 
@@ -991,7 +2011,7 @@ Wireless Optical Mouse,MOU-WL-01,Logitech,Electronics,M185,Standard,Black,PCS,84
               <Input
                 value={newItem.brand}
                 onChange={(e) => setNewItem({ ...newItem, brand: e.target.value })}
-                placeholder="e.g. Samsung, Nike, Bosch, Philips"
+                placeholder="e.g. Jaquar, Hindware, Cera, Kohler"
               />
             </div>
 
@@ -1000,7 +2020,7 @@ Wireless Optical Mouse,MOU-WL-01,Logitech,Electronics,M185,Standard,Black,PCS,84
               <Input
                 value={newItem.category}
                 onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-                placeholder="e.g. Electronics, Apparel, Hardware, FMCG"
+                placeholder="e.g. Faucets, Sanitaryware, Fittings"
               />
             </div>
 
@@ -1011,7 +2031,7 @@ Wireless Optical Mouse,MOU-WL-01,Logitech,Electronics,M185,Standard,Black,PCS,84
               <Input
                 value={newItem.model}
                 onChange={(e) => setNewItem({ ...newItem, model: e.target.value })}
-                placeholder="e.g. Pro, V2, Wireless, Slim"
+                placeholder="e.g. Concealed, Rimless, Single Lever"
               />
             </div>
 
@@ -1020,7 +2040,7 @@ Wireless Optical Mouse,MOU-WL-01,Logitech,Electronics,M185,Standard,Black,PCS,84
               <Input
                 value={newItem.size}
                 onChange={(e) => setNewItem({ ...newItem, size: e.target.value })}
-                placeholder="e.g. M, XL, 500g, 100ml, 15-inch"
+                placeholder="e.g. 18x12, 1/2 inch, 25mm"
               />
             </div>
 
@@ -1029,7 +2049,7 @@ Wireless Optical Mouse,MOU-WL-01,Logitech,Electronics,M185,Standard,Black,PCS,84
               <Input
                 value={newItem.colorFinish}
                 onChange={(e) => setNewItem({ ...newItem, colorFinish: e.target.value })}
-                placeholder="e.g. Black, Blue, 256GB, Standard"
+                placeholder="e.g. Chrome Plated, Glossy White, Matt Black"
               />
             </div>
 
@@ -1041,13 +2061,39 @@ Wireless Optical Mouse,MOU-WL-01,Logitech,Electronics,M185,Standard,Black,PCS,84
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
               >
                 <option value="PCS">PCS (Pieces / Units)</option>
+                <option value="SET">SET (Sets)</option>
+                <option value="PAIR">PAIR (Pairs)</option>
                 <option value="BOX">BOX (Boxes / Cartons)</option>
-                <option value="SET">SET (Sets / Pairs)</option>
-                <option value="KG">KG (Kilograms)</option>
-                <option value="MTR">MTR (Meters)</option>
-                <option value="LTR">LTR (Liters)</option>
-                <option value="PKT">PKT (Packets)</option>
+                <option value="MTR">MTR (Meters - 3 Decimals)</option>
+                <option value="KG">KG (Kilograms - 3 Decimals)</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Material / Body</label>
+              <Input
+                value={newItem.material}
+                onChange={(e) => setNewItem({ ...newItem, material: e.target.value })}
+                placeholder="e.g. Brass, Ceramic, SS-304"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Mounting Type</label>
+              <Input
+                value={newItem.mountingType}
+                onChange={(e) => setNewItem({ ...newItem, mountingType: e.target.value })}
+                placeholder="e.g. Wall Hung, Deck Mounted"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Warranty (Years)</label>
+              <Input
+                value={newItem.warrantyDuration}
+                onChange={(e) => setNewItem({ ...newItem, warrantyDuration: e.target.value })}
+                placeholder="e.g. 5, 7, 10"
+              />
             </div>
 
             <div>
@@ -1055,7 +2101,7 @@ Wireless Optical Mouse,MOU-WL-01,Logitech,Electronics,M185,Standard,Black,PCS,84
               <Input
                 value={newItem.hsnCode}
                 onChange={(e) => setNewItem({ ...newItem, hsnCode: e.target.value })}
-                placeholder="e.g. 8471, 6205, 1006"
+                placeholder="e.g. 8481, 6910, 7412"
               />
             </div>
 
@@ -1108,6 +2154,7 @@ Wireless Optical Mouse,MOU-WL-01,Logitech,Electronics,M185,Standard,Black,PCS,84
               <label className="block text-xs font-semibold text-slate-700 mb-1">Opening Stock</label>
               <Input
                 type="number"
+                step={["KG", "MTR"].includes(newItem.uom) ? "0.001" : "1"}
                 value={newItem.openingStock}
                 onChange={(e) => setNewItem({ ...newItem, openingStock: e.target.value })}
                 placeholder="10"

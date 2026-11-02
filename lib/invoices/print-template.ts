@@ -95,7 +95,7 @@ export function generateA4InvoiceHtml(data: InvoicePrintData): string {
     table { width: 100%; border-collapse: collapse; }
   </style>
 </head>
-<body>
+<body onload="window.print()">
   <div class="no-print" style="max-width: 800px; margin: 0 auto 16px auto; display: flex; justify-content: flex-end; gap: 8px;">
     <button onclick="window.print()" style="padding: 8px 16px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
       Print / Save as PDF
