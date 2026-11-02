@@ -142,8 +142,8 @@ describe("GST Invoice Generator Print & PDF Engine Suite", () => {
   // 3. Print Markup & Page-Structure Guarantees
   // -------------------------------------------------------------
   describe("3. Print Markup & Isolation Guarantees", () => {
-    const pageFile = fs.readFileSync(path.resolve(process.cwd(), "app/invoice-generator/page.tsx"), "utf8");
-    const clientFile = fs.readFileSync(path.resolve(process.cwd(), "app/invoice-generator/client.tsx"), "utf8");
+    const pageFile = fs.readFileSync(path.resolve(process.cwd(), "app/invoice-generator/page.tsx"), "utf8").replace(/\r\n/g, "\n");
+    const clientFile = fs.readFileSync(path.resolve(process.cwd(), "app/invoice-generator/client.tsx"), "utf8").replace(/\r\n/g, "\n");
 
     it("suppresses PublicHeader, nav, hero, FAQ, and PublicFooter in print mode", () => {
       // Check page.tsx hides non-invoice components

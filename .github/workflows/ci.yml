@@ -12,10 +12,12 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # Secrets retrieved securely from GitHub Repository Secrets Manager
-      DATABASE_URL: ${{ secrets.DATABASE_URL || 'mongodb://localhost:27017/elvora_ci?replicaSet=rs0' }}
-      JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci_super_secret_jwt_key_elvora_2026_ci_testing_only' }}
-      ADMIN_JWT_SECRET: ${{ secrets.ADMIN_JWT_SECRET || 'ci_super_secret_admin_jwt_key_elvora_2026_ci_testing_only' }}
+      # Isolated CI-only MongoDB replica set with direct connection for transaction support.
+      # Hardcoded to ensure CI tests NEVER connect to production MongoDB Atlas.
+      DATABASE_URL: 'mongodb://127.0.0.1:27017/elvora_ci?replicaSet=rs0&directConnection=true'
+      JWT_SECRET: 'ci_super_secret_jwt_key_elvora_2026_ci_testing_only'
+      ADMIN_JWT_SECRET: 'ci_super_secret_admin_jwt_key_elvora_2026_ci_testing_only'
+      SESSION_SECRET: 'ci_super_secret_session_key_elvora_2026_ci_testing_only_32chars'
       BILLING_PROVIDER: mock
       NODE_ENV: test
 
@@ -30,11 +32,58 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'package-lock.json'
 
+      - name: Start MongoDB Replica Set
+        run: |
+          echo "Starting MongoDB 7.0 container with replica set rs0..."
+          docker run -d \
+            --name mongodb \
+            -p 27017:27017 \
+            mongo:7.0 \
+            mongod --replSet rs0 --bind_ip_all
+
+          echo "Waiting for MongoDB daemon to accept connections..."
+          until docker exec mongodb mongosh --eval "db.adminCommand('ping')" --quiet > /dev/null 2>&1; do
+            echo "Waiting for mongod..."
+            sleep 1
+          done
+
+          echo "Initiating replica set rs0 with host 127.0.0.1:27017..."
+          docker exec mongodb mongosh --eval 'rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "127.0.0.1:27017" }] })'
+
+          echo "Waiting for replica set primary to be elected..."
+          for i in {1..30}; do
+            IS_PRIMARY=$(docker exec mongodb mongosh --eval "db.hello().isWritablePrimary" --quiet 2>/dev/null || true)
+            if [ "$IS_PRIMARY" = "true" ]; then
+              echo "Replica set primary elected successfully on attempt $i!"
+              break
+            fi
+            echo "Waiting for primary (attempt $i/30)..."
+            sleep 1
+          done
+
+      - name: Verify Replica Set Health & Multi-Document Transactions
+        run: |
+          echo "Verifying replica set status..."
+          docker exec mongodb mongosh --eval "rs.status().ok" --quiet
+          echo "Verifying multi-document ACID transaction capability..."
+          docker exec mongodb mongosh elvora_ci --eval '
+            const session = db.getMongo().startSession();
+            session.startTransaction();
+            const coll = session.getDatabase("elvora_ci").getCollection("ci_health_check");
+            coll.insertOne({ check: "acid_transaction_ready", timestamp: new Date() });
+            session.commitTransaction();
+            session.endSession();
+            print("Multi-document ACID transaction succeeded on elvora_ci!");
+          ' --quiet
+
       - name: Install Dependencies
         run: npm ci || npm install
 
       - name: Generate Prisma Client
         run: npx prisma generate
+
+      - name: Push Schema & Indexes to CI Database
+        run: npx prisma db push --skip-generate
 
       - name: 1. Code Linting (ESLint)
         run: npm run lint

@@ -180,7 +180,11 @@ export async function clearRevokedTokensForTests(): Promise<void> {
     if (db) {
       await db.revokedToken.deleteMany({});
     }
-  } catch {}
+  } catch (err: any) {
+    if (process.env.NODE_ENV === "test") {
+      console.warn("[clearRevokedTokensForTests] Database cleanup notice:", err?.message || err);
+    }
+  }
 }
 
 /**

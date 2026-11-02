@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    fileParallelism: false,
     env: {
       SESSION_SECRET: "default-secret-key-at-least-32-chars-long-elvora",
     },

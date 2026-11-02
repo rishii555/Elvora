@@ -163,5 +163,9 @@ export async function clearIdempotencyForTests(): Promise<void> {
   inMemoryIdempotency.clear();
   try {
     await prisma.idempotencyRecord.deleteMany({});
-  } catch {}
+  } catch (err: any) {
+    if (process.env.NODE_ENV === "test") {
+      console.warn("[clearIdempotencyForTests] Database cleanup notice:", err?.message || err);
+    }
+  }
 }
