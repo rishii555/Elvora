@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { registerPrismaClient } from "@/lib/auth/session";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -26,6 +27,11 @@ export const prisma =
   new PrismaClient({
     log: process.env.PRISMA_LOG_QUERIES === "true" ? ["query", "error", "warn"] : ["error", "warn"],
   });
+
+(globalThis as any).__elvora_prisma = prisma;
+try {
+  registerPrismaClient(() => prisma);
+} catch {}
 
 /**
  * Error thrown when a multi-document operation requiring ACID transaction guarantees

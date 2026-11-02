@@ -52,12 +52,27 @@ export async function signSessionToken(payload: Omit<SessionPayload, "exp">): Pr
     .sign(getSessionSecret());
 }
 
-async function getDbPrisma() {
-  if (typeof (process as any)?.versions?.node !== "undefined") {
+type DbPrismaProvider = () => any;
+let dbPrismaProvider: DbPrismaProvider | null = null;
+
+/**
+ * Decoupled provider registration: allows backend Node.js modules to supply
+ * the Prisma client without pulling @prisma/client into the Edge runtime middleware bundle.
+ */
+export function registerPrismaClient(provider: DbPrismaProvider): void {
+  dbPrismaProvider = provider;
+}
+
+function getDbPrisma(): any {
+  if (dbPrismaProvider) {
     try {
-      const mod = await import("@/lib/db/prisma");
-      return mod.prisma;
-    } catch {}
+      return dbPrismaProvider();
+    } catch {
+      return null;
+    }
+  }
+  if (typeof (globalThis as any).__elvora_prisma !== "undefined") {
+    return (globalThis as any).__elvora_prisma;
   }
   return null;
 }
