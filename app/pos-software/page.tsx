@@ -5,7 +5,6 @@ import Link from "next/link";
 import { 
   Keyboard, 
   Printer, 
-  Zap, 
   ArrowRight, 
   CreditCard, 
   Split, 
@@ -77,12 +76,7 @@ export default function PosSoftwarePage() {
         {/* Hero Section */}
         <section className="px-4 pt-12 pb-16 sm:px-6 lg:pt-16 lg:pb-20">
           <div className="mx-auto max-w-4xl text-center space-y-6">
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-200">
-              <Zap className="h-3.5 w-3.5 text-blue-600" />
-              Ultra-Fast Counter Checkout Engine
-            </span>
-
-            <h1 className="text-3xl font-extrabold tracking-tight text-[#111827] sm:text-5xl lg:text-6xl leading-[1.15]">
+            <h1 className="text-3xl font-bold tracking-tight text-[#111827] sm:text-4xl lg:text-5xl leading-tight">
               High-Speed Retail Counter POS <br className="hidden sm:inline" />
               <span className="text-[#2563EB]">Built for Extreme Rush Hours.</span>
             </h1>
@@ -94,7 +88,7 @@ export default function PosSoftwarePage() {
             <div className="pt-4 flex flex-wrap items-center justify-center gap-3.5 sm:gap-4">
               <Link
                 href="/register"
-                className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-6 py-3.5 text-sm sm:text-base font-semibold text-white shadow-sm hover:bg-[#1D4ED8] transition-all"
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm sm:text-base font-semibold text-white shadow-sm hover:bg-blue-700 transition-all"
               >
                 Get Started Today
                 <ArrowRight className="h-4 w-4" />

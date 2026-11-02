@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Clock, Calendar } from "lucide-react";
+import { ArrowRight, Clock, Calendar } from "lucide-react";
 import { PublicHeader } from "@/components/public-header";
 import { PublicFooter } from "@/components/public-footer";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -47,11 +47,7 @@ export default function BlogIndexPage() {
 
         {/* Hero Section */}
         <section className="px-4 pt-12 pb-12 sm:px-6 lg:pt-16 lg:pb-16 text-center space-y-4">
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-200">
-            <BookOpen className="h-3.5 w-3.5 text-blue-600" />
-            Elvora Knowledge Center
-          </span>
-          <h1 className="text-3xl font-extrabold text-[#111827] sm:text-5xl">
+          <h1 className="text-3xl font-bold tracking-tight text-[#111827] sm:text-4xl lg:text-5xl leading-tight">
             Guides for Modern Indian Growing Businesses
           </h1>
           <p className="mx-auto max-w-2xl text-xs sm:text-sm text-[#475569]">

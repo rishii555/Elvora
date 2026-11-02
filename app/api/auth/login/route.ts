@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { email, password } = loginSchema.parse(body);
 
-    // 2. Primary: Look up authenticated user in MongoDB Atlas database
+    // 2. Primary: Look up authenticated user in database
     let user = null;
     try {
       const dbStart = performance.now();
@@ -49,7 +49,11 @@ export async function POST(req: NextRequest) {
       });
       dbDuration = performance.now() - dbStart;
     } catch {
-      // In case database connection is unreachable, will fall back below
+      // Fail closed: Never bypass authentication when database is unreachable
+      return NextResponse.json(
+        { error: "Authentication service temporarily unavailable. Please try again." },
+        { status: 503 }
+      );
     }
 
     if (user && user.isActive) {
@@ -189,41 +193,6 @@ export async function POST(req: NextRequest) {
 
         return response;
       }
-    }
-
-    // 3. Fallback: Instant test admin evaluation mode (STRICT GUARD: Prohibited in production)
-    if (
-      process.env.NODE_ENV !== "production" &&
-      email.toLowerCase() === "admin@elvora.com" &&
-      password === "admin123"
-    ) {
-      resetRateLimit(`login:${ip}`);
-      const token = await signSessionToken({
-        userId: "demo-admin-id",
-        email: "admin@elvora.com",
-        name: "Elvora Admin (Test)",
-        activeTenantId: "demo-tenant-id",
-        role: "OWNER",
-      });
-
-      const response = NextResponse.json({
-        success: true,
-        message: "Login successful (Demo Mode)",
-        user: {
-          id: "demo-admin-id",
-          name: "Elvora Admin (Test)",
-          email: "admin@elvora.com",
-        },
-        tenant: {
-          id: "demo-tenant-id",
-          tradeName: "Universal Enterprises (Demo)",
-          role: "OWNER",
-        },
-      });
-
-      response.cookies.set(SESSION_COOKIE_NAME, token, getSessionCookieOptions());
-
-      return response;
     }
 
     return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });

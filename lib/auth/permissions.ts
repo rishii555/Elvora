@@ -10,7 +10,10 @@ export type AppPermission =
   | "CREATE_INVOICE"
   | "RECORD_PURCHASE"
   | "RECORD_EXPENSE"
-  | "RECORD_PAYMENT";
+  | "RECORD_PAYMENT"
+  | "MANAGE_ACCOUNTING"
+  | "MANAGE_AUTOMATION"
+  | "APPROVE_WORKFLOWS";
 
 const ROLE_PERMISSIONS: Record<TenantRole, readonly AppPermission[]> = {
   OWNER: [
@@ -24,6 +27,9 @@ const ROLE_PERMISSIONS: Record<TenantRole, readonly AppPermission[]> = {
     "RECORD_PURCHASE",
     "RECORD_EXPENSE",
     "RECORD_PAYMENT",
+    "MANAGE_ACCOUNTING",
+    "MANAGE_AUTOMATION",
+    "APPROVE_WORKFLOWS",
   ],
   MANAGER: [
     "VIEW_FINANCIAL_REPORTS",
@@ -33,6 +39,9 @@ const ROLE_PERMISSIONS: Record<TenantRole, readonly AppPermission[]> = {
     "RECORD_PURCHASE",
     "RECORD_EXPENSE",
     "RECORD_PAYMENT",
+    "MANAGE_ACCOUNTING",
+    "MANAGE_AUTOMATION",
+    "APPROVE_WORKFLOWS",
   ],
   ACCOUNTANT: [
     "VIEW_FINANCIAL_REPORTS",
@@ -40,6 +49,8 @@ const ROLE_PERMISSIONS: Record<TenantRole, readonly AppPermission[]> = {
     "RECORD_PURCHASE",
     "RECORD_EXPENSE",
     "RECORD_PAYMENT",
+    "MANAGE_ACCOUNTING",
+    "APPROVE_WORKFLOWS",
   ],
   BILLER: [
     "CREATE_INVOICE",

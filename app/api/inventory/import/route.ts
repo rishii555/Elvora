@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireTenantContext, TenantAuthorizationError } from "@/lib/tenant/context";
 import { requirePermission } from "@/lib/auth/permissions";
 import { parseInventoryCsv, importInventoryRows } from "@/lib/inventory/csv";
+import { DatabaseTransactionUnavailableError } from "@/lib/db/prisma";
 
 export async function POST(req: NextRequest) {
   try {
@@ -78,6 +79,9 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     if (error instanceof TenantAuthorizationError) {
       return NextResponse.json({ success: false, error: error.message }, { status: 401 });
+    }
+    if (error instanceof DatabaseTransactionUnavailableError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 503 });
     }
     const message = error instanceof Error ? error.message : "Failed to import CSV";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

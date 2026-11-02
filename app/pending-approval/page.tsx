@@ -81,7 +81,7 @@ function PendingApprovalContent() {
                 <Clock className="h-7 w-7 animate-pulse" />
               </div>
               <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-3 py-0.5 text-xs font-bold text-amber-700">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-700">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
                   Under Review
                 </span>
@@ -101,7 +101,7 @@ function PendingApprovalContent() {
                 <CheckCircle2 className="h-7 w-7" />
               </div>
               <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-0.5 text-xs font-bold text-emerald-700">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                   Approved
                 </span>
                 <h1 className="text-xl sm:text-2xl font-extrabold text-[#111827]">
@@ -120,7 +120,7 @@ function PendingApprovalContent() {
                 <XCircle className="h-7 w-7" />
               </div>
               <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-3 py-0.5 text-xs font-bold text-rose-700">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-700">
                   Registration Not Approved
                 </span>
                 <h1 className="text-xl sm:text-2xl font-extrabold text-[#111827]">
@@ -144,7 +144,7 @@ function PendingApprovalContent() {
                 <AlertTriangle className="h-7 w-7" />
               </div>
               <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-300 px-3 py-0.5 text-xs font-bold text-slate-700">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700">
                   Account Suspended
                 </span>
                 <h1 className="text-xl sm:text-2xl font-extrabold text-[#111827]">

@@ -16,7 +16,10 @@ import {
   X,
   CreditCard,
   BookOpen,
-  History
+  History,
+  Landmark,
+  BarChart3,
+  Zap
 } from "lucide-react";
 import { ElvoraLogo } from "@/components/logo";
 import { GlobalSearch } from "@/components/global-search";
@@ -64,12 +67,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push("/login");
   };
 
-  const navGroups = [
+  interface NavItem {
+    label: string;
+    href: string;
+    icon: React.ElementType;
+    badge?: string;
+  }
+
+  interface NavGroup {
+    group: string;
+    items: NavItem[];
+  }
+
+  const navGroups: NavGroup[] = [
     {
       group: "Core Billing",
       items: [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        { label: "Counter POS (F2)", href: "/pos", icon: Receipt, badge: "FAST" },
+        { label: "Counter POS (F2)", href: "/pos", icon: Receipt },
         { label: "Invoice History", href: "/invoices", icon: History },
       ],
     },
@@ -89,8 +104,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ],
     },
     {
+      group: "Finance & Books",
+      items: [
+        { label: "Accounting & Ledger", href: "/accounting", icon: Landmark },
+      ],
+    },
+    {
       group: "Business Intelligence",
       items: [
+        { label: "BI & Analytics", href: "/analytics", icon: BarChart3 },
+        { label: "Automations & Workflows", href: "/automations", icon: Zap },
         { label: "Reports & GST (3B/1)", href: "/reports", icon: FileText },
         { label: "Shop Settings", href: "/settings", icon: Settings },
       ],

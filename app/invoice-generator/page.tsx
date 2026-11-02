@@ -44,14 +44,17 @@ export default function InvoiceGeneratorPage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F8FAFC] text-[#475569]">
+    <div className="flex min-h-screen flex-col bg-[#F8FAFC] text-[#475569] print:bg-white print:text-black">
       <JsonLd data={[getBreadcrumbSchema(breadcrumbs), getFaqSchema(faqs)]} />
 
-      <PublicHeader activeNav="invoice-gen" />
+      {/* Website Header - Hidden in Print */}
+      <div className="print:hidden">
+        <PublicHeader activeNav="invoice-gen" />
+      </div>
 
-      <main className="flex-1">
-        {/* Breadcrumb Navigation */}
-        <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+      <main className="flex-1 print:p-0 print:m-0 print:w-full">
+        {/* Breadcrumb Navigation - Hidden in Print */}
+        <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8 print:hidden">
           <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium">
             <Link href="/" className="hover:text-blue-600 transition">Home</Link>
             <span>/</span>
@@ -59,8 +62,8 @@ export default function InvoiceGeneratorPage() {
           </nav>
         </div>
 
-        {/* Hero Section */}
-        <section className="px-4 pt-8 pb-8 sm:px-6 text-center space-y-3">
+        {/* Hero Section - Hidden in Print */}
+        <section className="px-4 pt-8 pb-8 sm:px-6 text-center space-y-3 print:hidden">
           <h1 className="text-3xl font-extrabold tracking-tight text-[#111827] sm:text-4xl">
             Free Online Indian GST Invoice Generator
           </h1>
@@ -69,13 +72,13 @@ export default function InvoiceGeneratorPage() {
           </p>
         </section>
 
-        {/* Interactive Client Tool */}
-        <section className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 lg:px-8">
+        {/* Interactive Client Tool & Dedicated Print Area */}
+        <section className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 lg:px-8 print:max-w-none print:p-0 print:m-0 print:w-full">
           <InvoiceGeneratorClient />
         </section>
 
-        {/* SEO Explanatory Guide Section */}
-        <section className="bg-white border-t border-[#E2E8F0] px-4 py-16 sm:px-6 lg:py-20">
+        {/* SEO Explanatory Guide Section - Hidden in Print */}
+        <section className="bg-white border-t border-[#E2E8F0] px-4 py-16 sm:px-6 lg:py-20 print:hidden">
           <div className="mx-auto max-w-4xl space-y-8">
             <div className="space-y-4">
               <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
@@ -126,7 +129,10 @@ export default function InvoiceGeneratorPage() {
         </section>
       </main>
 
-      <PublicFooter />
+      {/* Website Footer - Hidden in Print */}
+      <div className="print:hidden">
+        <PublicFooter />
+      </div>
     </div>
   );
 }

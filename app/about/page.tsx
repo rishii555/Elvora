@@ -2,7 +2,6 @@ import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { 
-  Building2, 
   ShieldCheck, 
   Globe, 
   CheckCircle2, 
@@ -77,12 +76,7 @@ export default function AboutPage() {
         {/* Hero Section */}
         <section className="relative overflow-hidden px-4 pt-10 pb-16 sm:px-6 lg:pt-16 lg:pb-20">
           <div className="mx-auto max-w-4xl text-center">
-            <div className="inline-flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700 mb-6">
-              <Building2 className="h-3.5 w-3.5" />
-              <span>About Elvora</span>
-            </div>
-
-            <h1 className="text-3xl font-extrabold tracking-tight text-[#111827] sm:text-4xl lg:text-5xl leading-tight">
+            <h1 className="text-3xl font-bold tracking-tight text-[#111827] sm:text-4xl lg:text-5xl leading-tight">
               Simpler Business. <br />
               <span className="text-[#2563EB]">Smarter Growth.</span>
             </h1>

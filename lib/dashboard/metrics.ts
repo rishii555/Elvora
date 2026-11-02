@@ -510,8 +510,8 @@ function getFallbackDemoDashboardMetrics(
 ): DashboardMetricsResult {
   const { startDate, endDate, label } = getDateRangeBounds(dateRangeKey, now);
 
-  const isDemo = tenantId === "demo-tenant-id";
-  const baseMultiplier = isDemo ? 1.0 : 0.0; // Empty tenants get 0 totals
+  const isDemo = false;
+  const baseMultiplier = 0.0; // Empty tenants get 0 totals
 
   const todaySales = isDemo ? 42500 : 0;
   const monthlySales = isDemo ? 386400 : 0;

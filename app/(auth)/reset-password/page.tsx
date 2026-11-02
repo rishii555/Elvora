@@ -3,8 +3,9 @@
 import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Lock, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
-import { ElvoraLogo } from "@/components/logo";
+import { ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { AuthLayout } from "@/components/auth/auth-layout";
+import { AuthPasswordInput } from "@/components/auth/auth-password-input";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -57,86 +58,84 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 sm:p-10 shadow-lg">
-      <div className="flex flex-col items-center text-center">
-        <ElvoraLogo size="lg" showTagline />
-        <h1 className="mt-5 text-xl font-bold text-slate-900">Set New Password</h1>
-        <p className="mt-1 text-xs text-slate-500">
-          Choose a secure, strong password for your Elvora account.
+    <div className="w-full rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm">
+      <div className="flex flex-col items-center text-center mb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Set New Password</h1>
+        <p className="mt-1 text-xs sm:text-sm text-slate-500">
+          Choose a secure, strong password for your Elvora workspace
         </p>
       </div>
 
       {error && (
-        <div className="mt-6 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-          <AlertCircle className="h-5 w-5 flex-shrink-0 text-rose-600" />
-          <p>{error}</p>
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs sm:text-sm text-rose-800 animate-in fade-in duration-200">
+          <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-rose-600 mt-0.5" />
+          <p className="leading-snug">{error}</p>
         </div>
       )}
 
       {success ? (
-        <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-center">
-          <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-600" />
-          <h3 className="mt-2 text-sm font-semibold text-emerald-900">Password Updated</h3>
-          <p className="mt-1 text-xs text-emerald-700">
-            Your password has been changed. You can now sign in with your new credentials.
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-6 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-3">
+            <CheckCircle2 className="h-6 w-6" />
+          </div>
+          <h3 className="text-sm font-bold text-emerald-900">Password Updated Successfully</h3>
+          <p className="mt-2 text-xs text-emerald-700 leading-relaxed">
+            Your password has been securely reset. You can now sign in with your new credentials.
           </p>
-          <div className="mt-5">
+          <div className="mt-6">
             <Link
               href="/login"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition-colors"
             >
               Sign In to Counter
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700">New Password</label>
-            <div className="relative mt-1">
-              <Lock className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-              <input
-                type="password"
-                required
-                placeholder="At least 8 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 pl-10 pr-3.5 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <AuthPasswordInput
+            label="New Password"
+            required
+            autoComplete="new-password"
+            placeholder="At least 8 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700">Confirm New Password</label>
-            <div className="relative mt-1">
-              <Lock className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-              <input
-                type="password"
-                required
-                placeholder="Repeat new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 pl-10 pr-3.5 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-          </div>
+          <AuthPasswordInput
+            label="Confirm New Password"
+            required
+            autoComplete="new-password"
+            placeholder="Repeat new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
 
           <div className="pt-2">
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-50 transition-all"
+              className="flex w-full h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 font-semibold text-sm text-white shadow-xs hover:bg-blue-700 active:scale-[0.99] disabled:opacity-50 transition-all cursor-pointer"
             >
-              {loading ? "Updating password..." : "Set New Password"}
-              <ArrowRight className="h-4 w-4" />
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Updating password...</span>
+                </>
+              ) : (
+                <>
+                  <span>Set New Password</span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
           </div>
 
-          <div className="text-center pt-2">
+          <div className="pt-4 text-center">
             <Link
               href="/login"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to Sign In
@@ -150,10 +149,10 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="flex min-h-screen bg-slate-50 items-center justify-center p-4 sm:p-6 lg:p-8">
-      <Suspense fallback={<div className="text-xs text-slate-400">Loading reset form...</div>}>
+    <AuthLayout activePage="reset-password" maxWidthClass="max-w-md">
+      <Suspense fallback={<div className="text-xs text-slate-400 p-8 text-center">Loading reset form...</div>}>
         <ResetPasswordForm />
       </Suspense>
-    </div>
+    </AuthLayout>
   );
 }

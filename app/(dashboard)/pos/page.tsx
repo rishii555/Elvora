@@ -16,7 +16,7 @@ import {
   Plus
 } from "lucide-react";
 import { formatINR } from "@/lib/utils/format";
-import { calculateInvoiceItem, calculateInvoiceSummary, InvoiceItemCalculationResult } from "@/lib/finance/decimal";
+import { calculateInvoiceItem, calculateInvoiceSummary, InvoiceItemCalculationResult, convertNumberToWordsINR, getStateNameByCode } from "@/lib/finance/decimal";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { CatalogGridSkeleton } from "@/components/ui/skeleton";
@@ -58,12 +58,17 @@ export default function UniversalPOSBillingPage() {
   const [invoiceType, setInvoiceType] = useState<"B2C_RETAIL_BILL" | "B2B_TAX_INVOICE">("B2C_RETAIL_BILL");
   const [paymentMode, setPaymentMode] = useState<"CASH" | "UPI" | "CREDIT" | "BANK_TRANSFER">("CASH");
 
+  // Current tenant business profile for invoice print header
+  const { data: profile } = useSWR<{ success: boolean; tenant: any }>("/api/tenant/profile");
+
   // Real items from tenant inventory using SWR cache
   const { data: catalogData, isLoading: isLoadingCatalog } = useSWR("/api/inventory?limit=50");
   const catalogItems: InventoryItem[] = catalogData?.items || [];
   const [searchQuery, setSearchQuery] = useState("");
   const [cartItems, setCartItems] = useState<CartLineItem[]>([]);
   const [createdInvoiceNumber, setCreatedInvoiceNumber] = useState<string>("INV-2026-0001");
+  const [createdInvoiceId, setCreatedInvoiceId] = useState<string | null>(null);
+  const [completedInvoiceSnapshot, setCompletedInvoiceSnapshot] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
 
@@ -191,7 +196,27 @@ export default function UniversalPOSBillingPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setCreatedInvoiceNumber(data.invoice?.invoiceNumber || "INV-NEW");
+        const invId = data.invoice?.id || null;
+        const invNum = data.invoice?.invoiceNumber || createdInvoiceNumber;
+        setCreatedInvoiceId(invId);
+        setCreatedInvoiceNumber(invNum);
+        setCompletedInvoiceSnapshot({
+          invoiceId: invId,
+          invoiceNumber: invNum,
+          customerName,
+          customerPhone,
+          customerGstin,
+          customerState,
+          invoiceType,
+          paymentMode,
+          date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+          items: cartItems.map((item, idx) => ({
+            ...item,
+            calc: calculatedItems[idx],
+          })),
+          summary: { ...summary },
+          isInterState,
+        });
         setIsPreviewOpen(false);
         setIsSuccessModalOpen(true);
       } else {
@@ -204,13 +229,26 @@ export default function UniversalPOSBillingPage() {
     }
   };
 
+  const handlePrintCompletedInvoice = () => {
+    if (createdInvoiceId) {
+      window.open(`/api/invoices/${createdInvoiceId}/print?format=${printFormat.toLowerCase()}`, "_blank");
+    } else {
+      window.print();
+    }
+  };
+
   const handleNewSale = () => {
     setIsSuccessModalOpen(false);
+    setCreatedInvoiceId(null);
+    setCompletedInvoiceSnapshot(null);
     setCartItems([]);
     setCustomerName("Walk-in Customer");
     setCustomerPhone("");
     setCustomerGstin("");
     setCheckoutError("");
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
   };
 
   return (
@@ -764,30 +802,389 @@ export default function UniversalPOSBillingPage() {
         maxWidth="md"
       >
         <div className="flex flex-col items-center text-center py-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-3">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 mb-3 shadow-xs">
             <Check className="h-7 w-7" />
           </div>
           <h4 className="text-lg font-bold text-slate-900">Invoice #{createdInvoiceNumber} Generated</h4>
           <p className="text-xs text-slate-500 mt-1">
-            Settlement Amount: <strong className="text-slate-800">{formatINR(summary.grandTotal)}</strong> ({paymentMode})
+            Settlement Amount: <strong className="text-slate-800">{formatINR(completedInvoiceSnapshot?.summary?.grandTotal || summary.grandTotal)}</strong> ({paymentMode})
           </p>
 
-          <div className="mt-6 flex w-full flex-col gap-2">
+          <div className="mt-6 flex w-full flex-col gap-2.5">
+            {/* Print Format Selector */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPrintFormat("A4")}
+                className={`flex-1 rounded-lg py-1.5 text-xs font-semibold border transition-colors ${
+                  printFormat === "A4"
+                    ? "bg-blue-50 border-blue-600 text-blue-700"
+                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                A4 Tax Invoice
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrintFormat("THERMAL")}
+                className={`flex-1 rounded-lg py-1.5 text-xs font-semibold border transition-colors ${
+                  printFormat === "THERMAL"
+                    ? "bg-blue-50 border-blue-600 text-blue-700"
+                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                3&quot; Thermal Receipt
+              </button>
+            </div>
+
             <Button
-              className="w-full bg-blue-600 hover:bg-blue-700 font-bold"
-              onClick={() => {
-                window.print();
-                handleNewSale();
-              }}
+              className="w-full bg-blue-600 hover:bg-blue-700 font-bold text-white shadow-sm"
+              onClick={handlePrintCompletedInvoice}
             >
-              <Printer className="h-4 w-4 mr-1" /> Print Document
+              <Printer className="h-4 w-4 mr-1.5" /> Print Invoice Document
             </Button>
-            <Button variant="outline" className="w-full" onClick={handleNewSale}>
+            <Button
+              variant="outline"
+              className="w-full border-slate-200 font-semibold"
+              onClick={handleNewSale}
+            >
               Next Transaction (New Bill)
             </Button>
           </div>
         </div>
       </Dialog>
+
+      {/* 
+        Dedicated Printable Invoice Container
+        Hidden on screen, but EXCLUSIVELY rendered by browser print engine via @media print.
+        This guarantees that even with window.print() or Ctrl+P, ONLY the real invoice is printed.
+      */}
+      <div id="pos-print-invoice-container" className="hidden print:block">
+        {(() => {
+          const activeInv = completedInvoiceSnapshot || {
+            invoiceNumber: createdInvoiceNumber,
+            date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+            customerName,
+            customerPhone,
+            customerGstin,
+            customerState,
+            invoiceType,
+            paymentMode,
+            items: cartItems.map((item, idx) => ({ ...item, calc: calculatedItems[idx] })),
+            summary,
+            isInterState,
+          };
+          const tenant = profile?.tenant || {};
+          const tenantStateName = getStateNameByCode(tenant.stateCode || "09");
+          const customerStateName = getStateNameByCode(activeInv.customerState || "09");
+          const isGstReg = Boolean(tenant.gstin && tenant.gstin.trim().length === 15);
+          const docTitle = isGstReg
+            ? activeInv.invoiceType === "B2B_TAX_INVOICE"
+              ? "TAX INVOICE"
+              : "RETAIL TAX INVOICE"
+            : "BILL OF SUPPLY";
+
+          if (printFormat === "THERMAL") {
+            return (
+              <div style={{ width: "72mm", margin: "0 auto", fontFamily: "monospace", fontSize: "11px", color: "#000", lineHeight: 1.3 }}>
+                <div style={{ textAlign: "center", borderBottom: "1px dashed #000", paddingBottom: "6px" }}>
+                  <strong style={{ fontSize: "14px" }}>{tenant.tradeName || tenant.legalName || "STORE COUNTER"}</strong><br />
+                  {tenant.address && <span style={{ fontSize: "10px" }}>{tenant.address}<br /></span>}
+                  {tenant.phone && <span>Tel: {tenant.phone}<br /></span>}
+                  {isGstReg && <span>GSTIN: {tenant.gstin}<br /></span>}
+                  <strong>{docTitle}</strong>
+                </div>
+
+                <div style={{ margin: "6px 0", fontSize: "10px", borderBottom: "1px dashed #000", paddingBottom: "4px" }}>
+                  <div>Inv: <strong>{activeInv.invoiceNumber}</strong></div>
+                  <div>Date: {activeInv.date}</div>
+                  <div>Customer: {activeInv.customerName}</div>
+                  {activeInv.customerPhone && <div>Ph: {activeInv.customerPhone}</div>}
+                  {activeInv.customerGstin && <div>GSTIN: {activeInv.customerGstin}</div>}
+                </div>
+
+                <div style={{ borderBottom: "1px dashed #000", paddingBottom: "6px", marginBottom: "6px" }}>
+                  {activeInv.items.map((item: any, idx: number) => (
+                    <div key={idx} style={{ marginBottom: "4px" }}>
+                      <div style={{ fontWeight: "bold" }}>{item.name}</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px" }}>
+                        <span>{item.quantity} {item.uom} x {item.unitPrice}</span>
+                        <span>{formatINR(item.calc?.totalAmount || item.quantity * item.unitPrice)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ borderBottom: "1px dashed #000", paddingBottom: "6px", fontSize: "11px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span>Taxable:</span>
+                    <span>{formatINR(activeInv.summary?.taxableAmount || 0)}</span>
+                  </div>
+                  {activeInv.summary?.totalTax > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>Total Tax:</span>
+                      <span>{formatINR(activeInv.summary?.totalTax || 0)}</span>
+                    </div>
+                  )}
+                  {activeInv.summary?.roundOff !== 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>Round Off:</span>
+                      <span>{activeInv.summary?.roundOff || 0}</span>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "13px", marginTop: "4px" }}>
+                    <span>TOTAL:</span>
+                    <span>{formatINR(activeInv.summary?.grandTotal || 0)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", marginTop: "2px" }}>
+                    <span>Payment:</span>
+                    <span>{activeInv.paymentMode}</span>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: "center", fontSize: "10px", marginTop: "8px" }}>
+                  Thank You! Visit Again.<br />
+                  Powered by Elvora
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div style={{ maxWidth: "800px", margin: "0 auto", padding: "16px", background: "#fff", color: "#0f172a", fontFamily: "sans-serif", fontSize: "12px", border: "1px solid #cbd5e1" }}>
+              {/* Header */}
+              <div style={{ borderBottom: "2px solid #0f172a", paddingBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <h1 style={{ margin: 0, fontSize: "20px", fontWeight: 800, color: "#0f172a" }}>
+                    {tenant.tradeName || tenant.legalName || "Store Counter"}
+                  </h1>
+                  {tenant.tradeName && tenant.legalName && tenant.legalName !== tenant.tradeName && (
+                    <div style={{ fontSize: "11px", color: "#64748b" }}>(Legal: {tenant.legalName})</div>
+                  )}
+                  <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px" }}>
+                    {tenant.address || "Store Counter"}<br />
+                    State: <strong>{tenantStateName} ({tenant.stateCode || "09"})</strong><br />
+                    {tenant.phone && <span>Phone: {tenant.phone}</span>}
+                  </div>
+                  {isGstReg ? (
+                    <div style={{ marginTop: "4px", fontSize: "12px", fontWeight: "bold", color: "#0f172a" }}>
+                      GSTIN: <span style={{ fontFamily: "monospace" }}>{tenant.gstin}</span>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: "4px", fontSize: "10px", color: "#64748b", fontStyle: "italic" }}>
+                      Composition / Regular Retailer under GST
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: "16px", fontWeight: 900, color: "#1e40af" }}>{docTitle}</div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", marginTop: "2px" }}>ORIGINAL FOR RECIPIENT</div>
+                  <div style={{ marginTop: "8px", fontSize: "12px" }}>
+                    Invoice No: <strong style={{ fontFamily: "monospace", fontSize: "13px" }}>{activeInv.invoiceNumber}</strong><br />
+                    Date: <strong>{activeInv.date}</strong><br />
+                    Place of Supply: <strong>{activeInv.customerState}-{customerStateName}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bill To */}
+              <div style={{ display: "flex", gap: "16px", marginTop: "12px", borderBottom: "1px solid #e2e8f0", paddingBottom: "12px" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", color: "#64748b" }}>Billed To (Buyer):</div>
+                  <div style={{ fontSize: "13px", fontWeight: "bold", color: "#0f172a", marginTop: "2px" }}>{activeInv.customerName}</div>
+                  {activeInv.customerPhone && <div style={{ fontSize: "11px", color: "#475569" }}>Phone: {activeInv.customerPhone}</div>}
+                  <div style={{ fontSize: "11px", color: "#475569" }}>State: {customerStateName} ({activeInv.customerState})</div>
+                  {activeInv.customerGstin && (
+                    <div style={{ fontSize: "11px", fontWeight: "bold", color: "#0f172a", marginTop: "2px" }}>
+                      GSTIN: <span style={{ fontFamily: "monospace" }}>{activeInv.customerGstin}</span>
+                    </div>
+                  )}
+                </div>
+                <div style={{ flex: 1, borderLeft: "1px solid #f1f5f9", paddingLeft: "16px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", color: "#64748b" }}>Settlement & Payment:</div>
+                  <div style={{ fontSize: "11px", color: "#334155", marginTop: "2px" }}>
+                    Payment Mode: <strong style={{ textTransform: "uppercase" }}>{activeInv.paymentMode}</strong><br />
+                    Billing Type: <strong>{activeInv.invoiceType === "B2B_TAX_INVOICE" ? "B2B Registered" : "B2C Consumer"}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", marginTop: "14px" }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", fontWeight: 700, color: "#334155" }}>
+                    <th style={{ padding: "6px", border: "1px solid #cbd5e1", textAlign: "center", width: "28px" }}>#</th>
+                    <th style={{ padding: "6px", border: "1px solid #cbd5e1", textAlign: "left" }}>Item Description</th>
+                    <th style={{ padding: "6px", border: "1px solid #cbd5e1", textAlign: "center", width: "60px" }}>HSN</th>
+                    <th style={{ padding: "6px", border: "1px solid #cbd5e1", textAlign: "center", width: "65px" }}>Qty</th>
+                    <th style={{ padding: "6px", border: "1px solid #cbd5e1", textAlign: "right", width: "75px" }}>Rate</th>
+                    <th style={{ padding: "6px", border: "1px solid #cbd5e1", textAlign: "right", width: "75px" }}>Taxable</th>
+                    {activeInv.isInterState ? (
+                      <>
+                        <th style={{ padding: "6px", border: "1px solid #cbd5e1", textAlign: "right", width: "55px" }}>IGST %</th>
+                        <th style={{ padding: "6px", border: "1px solid #cbd5e1", textAlign: "right", width: "65px" }}>IGST Amt</th>
+                      </>
+                    ) : (
+                      <>
+                        <th style={{ padding: "6px", border: "1px solid #cbd5e1", textAlign: "right", width: "55px" }}>CGST</th>
+                        <th style={{ padding: "6px", border: "1px solid #cbd5e1", textAlign: "right", width: "55px" }}>SGST</th>
+                      </>
+                    )}
+                    <th style={{ padding: "6px", border: "1px solid #cbd5e1", textAlign: "right", width: "85px" }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeInv.items.map((item: any, idx: number) => {
+                    const c = item.calc;
+                    return (
+                      <tr key={idx}>
+                        <td style={{ textAlign: "center", padding: "6px", border: "1px solid #cbd5e1" }}>{idx + 1}</td>
+                        <td style={{ padding: "6px", border: "1px solid #cbd5e1" }}>
+                          <strong>{item.name}</strong>
+                          {item.sku && <span style={{ fontSize: "10px", color: "#64748b" }}> ({item.sku})</span>}
+                        </td>
+                        <td style={{ textAlign: "center", padding: "6px", border: "1px solid #cbd5e1", fontFamily: "monospace" }}>{item.hsnCode || "-"}</td>
+                        <td style={{ textAlign: "center", padding: "6px", border: "1px solid #cbd5e1" }}>{item.quantity} {item.uom}</td>
+                        <td style={{ textAlign: "right", padding: "6px", border: "1px solid #cbd5e1" }}>{formatINR(item.unitPrice)}</td>
+                        <td style={{ textAlign: "right", padding: "6px", border: "1px solid #cbd5e1" }}>{formatINR(c?.taxableAmount || item.unitPrice * item.quantity)}</td>
+                        {activeInv.isInterState ? (
+                          <>
+                            <td style={{ textAlign: "right", padding: "6px", border: "1px solid #cbd5e1" }}>{item.gstRate}%</td>
+                            <td style={{ textAlign: "right", padding: "6px", border: "1px solid #cbd5e1" }}>{formatINR(c?.igstAmount || 0)}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td style={{ textAlign: "right", padding: "6px", border: "1px solid #cbd5e1" }}>{formatINR(c?.cgstAmount || 0)}</td>
+                            <td style={{ textAlign: "right", padding: "6px", border: "1px solid #cbd5e1" }}>{formatINR(c?.sgstAmount || 0)}</td>
+                          </>
+                        )}
+                        <td style={{ textAlign: "right", padding: "6px", border: "1px solid #cbd5e1", fontWeight: "bold" }}>{formatINR(c?.totalAmount || item.unitPrice * item.quantity)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={activeInv.isInterState ? 7 : 7} style={{ padding: "6px", textAlign: "right", fontWeight: "bold", border: "1px solid #cbd5e1" }}>
+                      Taxable Subtotal:
+                    </td>
+                    <td style={{ padding: "6px", textAlign: "right", fontWeight: "bold", border: "1px solid #cbd5e1" }}>
+                      {formatINR(activeInv.summary?.taxableAmount || 0)}
+                    </td>
+                  </tr>
+                  {!activeInv.isInterState && (
+                    <>
+                      <tr>
+                        <td colSpan={7} style={{ padding: "5px", textAlign: "right", border: "1px solid #cbd5e1", color: "#475569" }}>
+                          Central GST (CGST Total):
+                        </td>
+                        <td style={{ padding: "5px", textAlign: "right", border: "1px solid #cbd5e1" }}>
+                          {formatINR(activeInv.summary?.cgstTotal || 0)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan={7} style={{ padding: "5px", textAlign: "right", border: "1px solid #cbd5e1", color: "#475569" }}>
+                          State GST (SGST Total):
+                        </td>
+                        <td style={{ padding: "5px", textAlign: "right", border: "1px solid #cbd5e1" }}>
+                          {formatINR(activeInv.summary?.sgstTotal || 0)}
+                        </td>
+                      </tr>
+                    </>
+                  )}
+                  {activeInv.isInterState && (
+                    <tr>
+                      <td colSpan={7} style={{ padding: "5px", textAlign: "right", border: "1px solid #cbd5e1", color: "#475569" }}>
+                        Integrated GST (IGST Total):
+                      </td>
+                      <td style={{ padding: "5px", textAlign: "right", border: "1px solid #cbd5e1" }}>
+                        {formatINR(activeInv.summary?.igstTotal || 0)}
+                      </td>
+                    </tr>
+                  )}
+                  {activeInv.summary?.roundOff !== 0 && (
+                    <tr>
+                      <td colSpan={7} style={{ padding: "5px", textAlign: "right", border: "1px solid #cbd5e1", color: "#64748b" }}>
+                        Round Off:
+                      </td>
+                      <td style={{ padding: "5px", textAlign: "right", border: "1px solid #cbd5e1" }}>
+                        {activeInv.summary?.roundOff || 0}
+                      </td>
+                    </tr>
+                  )}
+                  <tr style={{ background: "#f8fafc" }}>
+                    <td colSpan={7} style={{ padding: "8px", textAlign: "right", fontWeight: 800, fontSize: "13px", border: "1px solid #cbd5e1", color: "#1e40af" }}>
+                      Invoice Total (INR):
+                    </td>
+                    <td style={{ padding: "8px", textAlign: "right", fontWeight: 800, fontSize: "14px", border: "1px solid #cbd5e1", color: "#1e40af" }}>
+                      {formatINR(activeInv.summary?.grandTotal || 0)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              {/* Amount in words */}
+              <div style={{ marginTop: "12px", padding: "8px", background: "#f8fafc", border: "1px solid #e2e8f0", fontSize: "11px" }}>
+                <strong>Amount Chargeable (in words):</strong> {convertNumberToWordsINR(activeInv.summary?.grandTotal || 0)}
+              </div>
+
+              {/* Signatory */}
+              <div style={{ marginTop: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <div style={{ fontSize: "10px", color: "#64748b" }}>
+                  Declaration: We declare that this invoice shows the actual price of the goods described<br />
+                  and that all particulars are true and correct.<br />
+                  <span style={{ fontSize: "9px" }}>Generated via Elvora ERP</span>
+                </div>
+                <div style={{ textAlign: "center", borderTop: "1px solid #0f172a", paddingTop: "6px", width: "180px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "bold" }}>{tenant.tradeName || tenant.legalName || "Authorized Signatory"}</div>
+                  <div style={{ fontSize: "10px", color: "#64748b" }}>Authorized Signatory</div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Global Print Stylesheet for POS to ensure 100% clean invoice print */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: ${printFormat === "THERMAL" ? "80mm auto" : "A4 portrait"};
+            margin: ${printFormat === "THERMAL" ? "2mm" : "10mm"};
+          }
+          body, html {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          /* Hide every single UI element, layout, nav, sidebar, header, buttons, dialogs, modals, toasts */
+          header, aside, nav, button, input, select, .no-print, [role="dialog"], div[aria-modal="true"], [data-radix-portal] {
+            display: none !important;
+          }
+          /* Hide main container borders and paddings */
+          body > div, main {
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            background: #ffffff !important;
+          }
+          /* Display only the dedicated printable invoice */
+          #pos-print-invoice-container {
+            display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            margin: 0 !important;
+            padding: ${printFormat === "THERMAL" ? "4px" : "16px"} !important;
+            z-index: 999999 !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

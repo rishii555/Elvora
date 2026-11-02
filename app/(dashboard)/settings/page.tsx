@@ -452,7 +452,7 @@ export default function ShopSettingsPage() {
                   <Badge variant="success" size="sm">
                     Verified Business Account
                   </Badge>
-                  <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-800/80">
+                  <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-950/80 px-2.5 py-0.5 rounded-md border border-emerald-800/80">
                     Admin Approved
                   </span>
                 </div>
