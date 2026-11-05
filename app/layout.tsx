@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { siteConfig } from "@/lib/seo/config";
 import { GoogleAnalytics } from "@/components/seo/analytics";
+import { FloatingAssistantLauncher } from "@/components/assistant/floating-assistant-launcher";
+import { LanguageProvider } from "@/lib/i18n/context";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -94,7 +96,10 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
         <GoogleAnalytics />
-        {children}
+        <LanguageProvider>
+          {children}
+          <FloatingAssistantLauncher />
+        </LanguageProvider>
       </body>
     </html>
   );

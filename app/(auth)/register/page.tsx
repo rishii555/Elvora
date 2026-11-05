@@ -8,6 +8,7 @@ import { AuthLayout } from "@/components/auth/auth-layout";
 import { AuthTabs } from "@/components/auth/auth-tabs";
 import { AuthInput } from "@/components/auth/auth-input";
 import { AuthPasswordInput } from "@/components/auth/auth-password-input";
+import { useTranslation } from "@/lib/i18n/context";
 
 const INDIAN_STATES = [
   { code: "09", name: "09 - Uttar Pradesh" },
@@ -46,6 +47,7 @@ const BUSINESS_SECTORS = [
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [form, setForm] = useState({
     name: "",
@@ -104,10 +106,10 @@ export default function RegisterPage() {
         <div className="flex flex-col items-center text-center mb-6">
           <AuthTabs activeTab="register" />
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Create Business Workspace
+            {t("auth.createAccount") || "Create Business Workspace"}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-slate-500 max-w-md">
-            Commercial enterprise operating system for billing, multi-location inventory & accounts
+            {t("auth.registerSubtitle")}
           </p>
         </div>
 
@@ -314,9 +316,9 @@ export default function RegisterPage() {
 
         {/* Footer Redirect */}
         <p className="mt-8 text-center text-xs text-slate-500 pt-4 border-t border-slate-100">
-          Already registered?{" "}
+          {t("auth.alreadyHaveAccount")}{" "}
           <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700 hover:underline">
-            Sign In here
+            {t("auth.signIn")}
           </Link>
         </p>
       </div>

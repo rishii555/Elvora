@@ -1,11 +1,16 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
+import { useTranslation } from "@/lib/i18n/context";
 
 interface AuthTabsProps {
   activeTab: "login" | "register";
 }
 
 export function AuthTabs({ activeTab }: AuthTabsProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1 mb-6 text-xs font-semibold select-none border border-slate-200/60">
       <Link
@@ -16,7 +21,7 @@ export function AuthTabs({ activeTab }: AuthTabsProps) {
             : "text-slate-500 hover:text-slate-900"
         }`}
       >
-        Sign In
+        {t("auth.signIn")}
       </Link>
       <Link
         href="/register"
@@ -26,7 +31,7 @@ export function AuthTabs({ activeTab }: AuthTabsProps) {
             : "text-slate-500 hover:text-slate-900"
         }`}
       >
-        Create Workspace
+        {t("auth.createAccount")}
       </Link>
     </div>
   );

@@ -1,7 +1,11 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ElvoraLogo } from "@/components/logo";
+import { LanguageSelector } from "@/components/language-selector";
+import { useTranslation } from "@/lib/i18n/context";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -11,12 +15,12 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children, activePage, maxWidthClass = "max-w-md" }: AuthLayoutProps) {
   const currentYear = new Date().getFullYear();
+  const { t } = useTranslation();
 
   return (
     <div className="relative min-h-screen bg-slate-50 flex flex-col justify-between selection:bg-blue-100 selection:text-blue-900 text-slate-900">
-      {/* Subtle Geometric Background Decorations (Desktop only, strictly secondary to form) */}
+      {/* Subtle Geometric Background Decorations */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden hidden md:block select-none" aria-hidden="true">
-        {/* Faint ambient grid */}
         <div
           className="absolute inset-0 opacity-[0.4]"
           style={{
@@ -25,7 +29,6 @@ export function AuthLayout({ children, activePage, maxWidthClass = "max-w-md" }:
           }}
         />
 
-        {/* Elegant geometric architectural arcs inspired by desktop reference */}
         <svg
           className="absolute top-0 right-0 -mr-24 -mt-24 h-[600px] w-[600px] stroke-slate-200/70"
           fill="none"
@@ -47,30 +50,29 @@ export function AuthLayout({ children, activePage, maxWidthClass = "max-w-md" }:
           <circle cx="250" cy="250" r="110" strokeWidth="1" opacity="0.4" />
         </svg>
 
-        {/* Soft atmospheric gradient wash */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-blue-50/50 rounded-full blur-3xl opacity-70 pointer-events-none" />
       </div>
 
-      {/* Header — EXACT Homepage Header Alignment Structure & Full-Width Container */}
+      {/* Header with Global Language Selector & Logo */}
       <header className="sticky top-0 z-50 w-full border-b border-[#E2E8F0] bg-white/95 backdrop-blur-md">
         <div className="flex w-full items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-          {/* Full Left: Brand Logo + Tagline (Exact Homepage Match) */}
           <div className="flex items-center">
             <ElvoraLogo showTagline size="md" />
           </div>
 
-          {/* Full Right: Auth Navigation Actions (Exact Homepage Right-Side Alignment) */}
           <div className="flex items-center gap-2 sm:gap-3">
+            <LanguageSelector variant="header" />
+
             {activePage === "login" && (
               <>
                 <span className="hidden sm:inline text-xs sm:text-sm font-medium text-slate-600">
-                  Don&apos;t have an account?
+                  {t("auth.dontHaveAccount") || "Don't have an account?"}
                 </span>
                 <Link
                   href="/register"
                   className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-[#2563EB] px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-xs hover:bg-[#1D4ED8] active:bg-blue-800 transition-all"
                 >
-                  Create Account
+                  {t("auth.createAccount") || "Create Account"}
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </>
@@ -79,13 +81,13 @@ export function AuthLayout({ children, activePage, maxWidthClass = "max-w-md" }:
             {activePage === "register" && (
               <>
                 <span className="hidden sm:inline text-xs sm:text-sm font-medium text-slate-600">
-                  Already registered?
+                  {t("auth.alreadyHaveAccount") || "Already registered?"}
                 </span>
                 <Link
                   href="/login"
                   className="inline-flex min-h-[40px] items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-[#111827] shadow-xs hover:bg-slate-50 active:bg-slate-100 transition-colors"
                 >
-                  Sign In
+                  {t("auth.signIn") || "Sign In"}
                 </Link>
               </>
             )}
@@ -96,7 +98,7 @@ export function AuthLayout({ children, activePage, maxWidthClass = "max-w-md" }:
                 className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-[#111827] shadow-xs hover:bg-slate-50 active:bg-slate-100 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4 text-slate-500" />
-                Back to Sign In
+                {t("auth.backToLogin")}
               </Link>
             )}
           </div>
@@ -124,7 +126,7 @@ export function AuthLayout({ children, activePage, maxWidthClass = "max-w-md" }:
               Terms of Service
             </Link>
             <Link href="/contact" className="inline-block py-1.5 hover:text-slate-900 transition-colors">
-              Help & Support
+              Contact
             </Link>
           </div>
         </div>
