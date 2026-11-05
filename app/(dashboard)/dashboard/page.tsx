@@ -24,6 +24,7 @@ import { DashboardMetricsResult, DateRangeKey } from "@/lib/dashboard/metrics";
 import { TableContainer, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/lib/i18n/context";
 
 const DATE_RANGE_OPTIONS: { key: DateRangeKey; label: string }[] = [
   { key: "7d", label: "Last 7 Days" },
@@ -34,6 +35,7 @@ const DATE_RANGE_OPTIONS: { key: DateRangeKey; label: string }[] = [
 ];
 
 export default function DashboardOverviewPage() {
+  const { t } = useTranslation();
   const [dateRange, setDateRange] = useState<DateRangeKey>("30d");
   const { data, error, isLoading: loading, mutate } = useSWR<DashboardMetricsResult>(
     `/api/dashboard/metrics?range=${dateRange}`
@@ -52,10 +54,10 @@ export default function DashboardOverviewPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Business Dashboard
+            {t("dashboard.title")}
           </h1>
           <p className="text-xs text-slate-500">
-            Live authorized financial indicators, stock levels, and daily revenue movements.
+            {t("dashboard.subtitle")}
           </p>
         </div>
 
@@ -95,19 +97,19 @@ export default function DashboardOverviewPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Quick Actions:
+            {t("dashboard.quickActions")}:
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/pos">
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
                 <Receipt className="mr-1.5 h-3.5 w-3.5" />
-                New Invoice (POS)
+                {t("billing.posTitle")}
               </Button>
             </Link>
             <Link href="/inventory">
               <Button size="sm" variant="outline" className="border-slate-300">
                 <Plus className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
-                Add Product
+                {t("inventory.addProduct")}
               </Button>
             </Link>
             <Link href="/purchases">

@@ -8,6 +8,7 @@ const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password
 // Protected dashboard routes requiring active tenant session
 const PROTECTED_PREFIXES = [
   "/dashboard",
+  "/assistant",
   "/pos",
   "/invoices",
   "/inventory",
@@ -63,7 +64,7 @@ export async function middleware(req: NextRequest) {
   // 1. Skip Next.js internal static assets
   if (
     pathname.startsWith("/_next") ||
-    pathname.includes(".") || // e.g. favicon.ico, images, sitemap.xml, robots.txt
+    /\\.(ico|png|jpg|jpeg|svg|webp|avif|css|js|map|txt|xml|webmanifest|json|woff|woff2|ttf|eot)$/i.test(pathname) || // e.g. favicon.ico, images, sitemap.xml, robots.txt
     pathname === "/privacy" ||
     pathname === "/terms" ||
     pathname === "/pricing" ||
@@ -104,8 +105,16 @@ export async function middleware(req: NextRequest) {
         if (origin) {
           try {
             const originHost = new URL(origin).host;
-            const hostHeader = req.headers.get("host") || req.nextUrl.host;
-            if (originHost !== hostHeader) {
+            const hostHeader = req.headers.get("x-forwarded-host") || req.headers.get("host") || req.nextUrl.host;
+            let appUrlHost = "";
+            if (process.env.NEXT_PUBLIC_APP_URL) {
+              try {
+                appUrlHost = new URL(process.env.NEXT_PUBLIC_APP_URL).host;
+              } catch {
+                // Ignore malformed env var
+              }
+            }
+            if (originHost !== hostHeader && (!appUrlHost || originHost !== appUrlHost)) {
               return applySecurityHeaders(
                 NextResponse.json(
                   { success: false, error: "CSRF security check failed: Origin mismatch" },

@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
         id: context.userId,
         name: context.userName,
         email: context.userEmail,
+        languagePreference: req.cookies.get("elvora_locale")?.value || "en",
       },
       tenant: {
         id: context.tenantId,

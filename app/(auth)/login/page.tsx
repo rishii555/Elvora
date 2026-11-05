@@ -9,9 +9,11 @@ import { AuthTabs } from "@/components/auth/auth-tabs";
 import { AuthInput } from "@/components/auth/auth-input";
 import { AuthPasswordInput } from "@/components/auth/auth-password-input";
 import { AdminTestCard } from "@/components/auth/admin-test-card";
+import { useTranslation } from "@/lib/i18n/context";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [form, setForm] = useState({
     email: "",
@@ -59,9 +61,9 @@ export default function LoginPage() {
         {/* Header Branding & Auth Navigation Tabs */}
         <div className="flex flex-col items-center text-center mb-6">
           <AuthTabs activeTab="login" />
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Welcome Back</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t("auth.welcomeBack") || "Welcome Back"}</h1>
           <p className="mt-1 text-xs sm:text-sm text-slate-500">
-            Sign in to manage your billing, inventory, and accounts
+            {t("auth.loginSubtitle")}
           </p>
         </div>
 
@@ -76,18 +78,18 @@ export default function LoginPage() {
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <AuthInput
-            label="Email Address"
+            label={t("auth.email")}
             type="email"
             required
             autoComplete="email"
-            placeholder="owner@example.com"
+            placeholder={t("auth.emailPlaceholder")}
             icon={<Mail className="h-4 w-4" />}
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
 
           <AuthPasswordInput
-            label="Password"
+            label={t("auth.password")}
             required
             autoComplete="current-password"
             placeholder="••••••••"
@@ -98,7 +100,7 @@ export default function LoginPage() {
                 href="/forgot-password"
                 className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors"
               >
-                Forgot password?
+                {t("auth.forgotPassword") || "Forgot password?"}
               </Link>
             }
           />
@@ -111,7 +113,7 @@ export default function LoginPage() {
                 onChange={(e) => setForm({ ...form, rememberMe: e.target.checked })}
                 className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20"
               />
-              Remember me
+              {t("auth.rememberMe") || "Remember me"}
             </label>
           </div>
 
@@ -124,11 +126,11 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Signing in...</span>
+                  <span>{t("common.loading")}</span>
                 </>
               ) : (
                 <>
-                  <span>Sign In to Workspace</span>
+                  <span>{t("auth.signIn")}</span>
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
@@ -145,9 +147,9 @@ export default function LoginPage() {
 
         {/* Footer Redirect */}
         <p className="mt-6 text-center text-xs text-slate-500">
-          New business?{" "}
+          {t("auth.dontHaveAccount")}{" "}
           <Link href="/register" className="font-semibold text-blue-600 hover:text-blue-700 hover:underline">
-            Register your shop here
+            {t("auth.createAccount")}
           </Link>
         </p>
       </div>

@@ -19,9 +19,13 @@ import {
   History,
   Landmark,
   BarChart3,
-  Zap
+  Zap,
+  Bot
 } from "lucide-react";
+
 import { ElvoraLogo } from "@/components/logo";
+import { LanguageSelector } from "@/components/language-selector";
+import { useTranslation } from "@/lib/i18n/context";
 import { GlobalSearch } from "@/components/global-search";
 import { SWRConfig } from "swr";
 import { defaultSWRConfig } from "@/lib/swr-config";
@@ -36,6 +40,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     let isMounted = true;
@@ -83,39 +88,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       group: "Core Billing",
       items: [
-        { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        { label: "Counter POS (F2)", href: "/pos", icon: Receipt },
-        { label: "Invoice History", href: "/invoices", icon: History },
+        { label: t("navigation.dashboard"), href: "/dashboard", icon: LayoutDashboard },
+        { label: t("navigation.pos"), href: "/pos", icon: Receipt },
+        { label: t("navigation.invoices"), href: "/invoices", icon: History },
       ],
     },
     {
       group: "Catalog & Stock",
       items: [
-        { label: "Products & Stock", href: "/inventory", icon: Boxes },
-        { label: "Suppliers & Purchases", href: "/purchases", icon: Truck },
+        { label: t("inventory.products"), href: "/inventory", icon: Boxes },
+        { label: t("navigation.purchases"), href: "/purchases", icon: Truck },
       ],
     },
     {
       group: "Parties & Khata",
       items: [
-        { label: "Customers & Udhar", href: "/customers", icon: Users },
-        { label: "Payments & Collections", href: "/payments", icon: CreditCard },
-        { label: "Expenses & Cashbook", href: "/expenses", icon: BookOpen },
+        { label: t("navigation.customers"), href: "/customers", icon: Users },
+        { label: t("navigation.payments"), href: "/payments", icon: CreditCard },
+        { label: t("navigation.expenses"), href: "/expenses", icon: BookOpen },
       ],
     },
     {
       group: "Finance & Books",
       items: [
-        { label: "Accounting & Ledger", href: "/accounting", icon: Landmark },
+        { label: t("navigation.accounting"), href: "/accounting", icon: Landmark },
+      ],
+    },
+    {
+      group: "Smart Assistant",
+      items: [
+        { label: t("navigation.assistant"), href: "/assistant", icon: Bot, badge: "NEW" },
       ],
     },
     {
       group: "Business Intelligence",
       items: [
-        { label: "BI & Analytics", href: "/analytics", icon: BarChart3 },
-        { label: "Automations & Workflows", href: "/automations", icon: Zap },
-        { label: "Reports & GST (3B/1)", href: "/reports", icon: FileText },
-        { label: "Shop Settings", href: "/settings", icon: Settings },
+        { label: t("navigation.analytics"), href: "/analytics", icon: BarChart3 },
+        { label: t("navigation.automations"), href: "/automations", icon: Zap },
+        { label: t("navigation.reports"), href: "/reports", icon: FileText },
+        { label: t("navigation.settings"), href: "/settings", icon: Settings },
       ],
     },
   ];
@@ -138,7 +149,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {profile?.tenant.role || "OWNER"}
               </span>
               <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" /> Live Store
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" /> {t("navigation.liveStore")}
               </span>
             </div>
           </div>
@@ -197,7 +208,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
           >
             <LogOut className="h-3.5 w-3.5" />
-            Sign Out
+            {t("navigation.signOut")}
           </button>
         </div>
       </aside>
@@ -207,6 +218,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Top Navbar Header */}
         <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
           <div className="flex items-center gap-3">
+
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 md:hidden"
@@ -219,12 +231,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-3">
+
+            <LanguageSelector variant="header" />
             <Link
               href="/pos"
               className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition-colors"
             >
               <Receipt className="h-3.5 w-3.5" />
-              <span>New Bill (F2)</span>
+              <span>{t("navigation.newBillShortcut")}</span>
             </Link>
             <div className="h-4 w-px bg-slate-200 hidden sm:block" />
             <div className="hidden sm:flex items-center gap-2">
@@ -278,7 +292,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50"
                 >
                   <LogOut className="h-4 w-4" />
-                  Sign Out
+                  {t("navigation.signOut")}
                 </button>
               </div>
             </nav>
@@ -292,6 +306,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </SWRConfig>
         </main>
       </div>
+
     </div>
   );
 }

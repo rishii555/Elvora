@@ -159,5 +159,40 @@ describe("Authentication Session Persistence & Middleware Routing Suite", () => 
       expect(res.status).toBe(307);
       expect(res.headers.get("location")).toBe("http://localhost:3000/login?returnUrl=%2Finventory");
     });
+    it("does not treat dot-containing API routes as static files", async () => {
+      const req = new NextRequest("http://localhost:3000/api/users/john.doe@test.com", {
+        method: "GET",
+      });
+      const res = await middleware(req);
+      // API routes should receive X-Robots-Tag header
+      expect(res.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive");
+    });
+
+    it("allows API POST when Origin matches x-forwarded-host", async () => {
+      const req = new NextRequest("http://localhost:3000/api/dashboard/metrics", {
+        method: "POST",
+        headers: {
+          origin: "https://elvora.qd.je",
+          "x-forwarded-host": "elvora.qd.je",
+          "sec-fetch-site": "same-origin",
+        },
+      });
+      const res = await middleware(req);
+      // Should not be rejected with 403 CSRF error
+      expect(res.status).not.toBe(403);
+    });
+
+    it("rejects API POST when Origin does not match host", async () => {
+      const req = new NextRequest("http://localhost:3000/api/dashboard/metrics", {
+        method: "POST",
+        headers: {
+          origin: "https://malicious-attacker.com",
+          host: "localhost:3000",
+          "sec-fetch-site": "cross-site",
+        },
+      });
+      const res = await middleware(req);
+      expect(res.status).toBe(403);
+    });
   });
 });
